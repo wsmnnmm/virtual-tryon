@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -X POST https://dashscope.aliyuncs.com/api/v1/services/aigc/virtualtryon/top -H 'Authorization: Bearer sk-a361a4c809c345f5b7f8d951e01f70fb' -H 'Content-Type: application/json' -H 'X-DashScope-Async: enable' -d '{:*)",
+      "WebSearch",
+      "WebFetch(domain:help.aliyun.com)",
+      "Bash(curl \"http://localhost:3000/api/proxy-image?url=https%3A%2F%2Fcoze-coding-project.tos.coze.site%2Fcoze_storage_7628204427257708580%2Fuploads%2F1776088813767_ast_mnx9f7if_ra1kh24p_31f64bde.jpg%3Fsign%3D1778680814-414f9f0c8b-0-19968f564644136e2cdc024e4343c387cff740be04fa8cb09b3dfcc22694df11\")",
+      "Bash(curl -X POST \"https://yw9739f85y.coze.site/api/storage/upload\" -H \"X-Storage-Token: q6WYL82rNwGEvK8Fgxx7VC6pidv35z8YTvnVpq0\" -F \"file=@C:/Users/wsmnnmmm/Pictures/test.jpg\" -F \"scene=test\" -v)",
+      "Bash(curl -X POST \"https://yw9739f85y.coze.site/api/storage/upload\" -H \"X-Storage-Token: q6WYL82rNwGEvK8Fgxx7VC6pidv35z8YTvnVpq0\" -F \"file=@d:/Project/virtual-tryon/src/assets/hero.png\" -F \"scene=test\" -v)",
+      "Bash(curl -X GET \"https://yw9739f85y.coze.site/api/storage/health\" -H \"X-Storage-Token: q6WYL82rNwGEvK8Fgxx7VC6pidv35z8YTvnVpq0\")",
+      "Bash(curl -I \"https://4988e0f0-2022-462e-9458-46398d90fbe7.dev.coze.site/api/storage/raw/ast_mnxcjrro_nnvoxm77\")",
+      "Bash(curl -s -X POST https://yw9739f85y.coze.site/api/storage/upload -H 'X-Storage-Token: q6WYL82rNwGEvK8Fgxx7VC6pidv35z8YTvnVpq0' -F file=@d:/Project/virtual-tryon/src/assets/hero.png -F scene=test)",
+      "Bash(curl -s -X POST https://dashscope.aliyuncs.com/api/v1/services/aigc/virtualtryon/top -H 'Authorization: Bearer sk-a361a4c809c345f5b7f8d951e01f70fb' -H 'Content-Type: application/json' -H 'X-DashScope-Async: enable' -d '{:*)",
+      "Bash(curl -s --connect-timeout 5 -X POST https://dashscope.aliyuncs.com/api/v1/services/aigc/virtualtryon/top -H 'Authorization: Bearer sk-a361a4c809c345f5b7f8d951e01f70fb' -H 'Content-Type: application/json' -H 'X-DashScope-Async: enable' -d '{\"model\":\"aitryon\",\"input\":{\"person_image_url\":\"https://yw9739f85y.coze.site/api/storage/raw/ast_mnxd4kbp_onna79oh\",\"top_garment_url\":\"https://yw9739f85y.coze.site/api/storage/raw/ast_mnxd4kbp_onna79oh\"}}')",
+      "Bash(curl -s --connect-timeout 5 -I \"https://yw9739f85y.coze.site/api/storage/raw/ast_mnxd4kbp_onna79oh\")",
+      "Bash(curl -s --connect-timeout 5 \"https://yw9739f85y.coze.site/api/storage/raw/ast_mnxd4kbp_onna79oh\" -o /tmp/test_image.png)",
+      "Read(//tmp/**)",
+      "Bash(curl -s -X POST \"https://yw9739f85y.coze.site/api/storage/upload\" -H \"X-Storage-Token: q6WYL82rNwGEvK8Fgxx7VC6pidv35z8YTvnVpq0\" -F \"file=@d:/Project/virtual-tryon/src/assets/hero.png\" -F \"scene=test\")",
+      "Bash(curl -s -I \"https://yw9739f85y.coze.site/api/storage/raw/ast_mnxdg5yt_cxuvsvp0\")",
+      "Bash(curl -s --connect-timeout 3 -I \"https://yw9739f85y.coze.site/api/storage/raw/ast_mnxdg5yt_cxuvsvp0\")",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(curl -s --connect-timeout 5 -o /tmp/hero_test.png \"https://yw9739f85y.coze.site/api/storage/raw/ast_mnxdg5yt_cxuvsvp0\")",
+      "Bash(curl -s --connect-timeout 5 -I \"https://yw9739f85y.coze.site/api/storage/raw/ast_mnxdqog6_3i56cfb6\")",
+      "Bash(curl -s -I \"https://yw9739f85y.coze.site/api/storage/raw/ast_mnxdqog6_3i56cfb6\")",
+      "mcp__plugin_context7_context7__query-docs"
+    ]
+  }
+}

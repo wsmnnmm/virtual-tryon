@@ -54,6 +54,9 @@ export async function createTryOnTask(input: TryOnCreateRequest) {
       elapsedMs: Date.now() - start,
       taskId: response.output?.task_id,
       taskStatus: response.output?.task_status,
+      responseCode: response.code,
+      responseMessage: response.message,
+      responseRequestId: response.request_id,
     })
 
     return response
@@ -75,6 +78,8 @@ export async function createTryOnTask(input: TryOnCreateRequest) {
         errorType: 'http_error',
         status: error.status,
         elapsedMs: Date.now() - start,
+        errorBody: error.body,
+        errorMessage: error.message,
       })
       throw error
     }

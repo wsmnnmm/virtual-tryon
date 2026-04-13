@@ -46,6 +46,14 @@ export async function POST(req: Request) {
     }
 
     if (error instanceof HttpClientError) {
+      logger.error({
+        event: 'tryon.request.error',
+        route: 'dashscope.createTask',
+        errorType: 'http_error',
+        status: error.status,
+        errorBody: error.body,
+      })
+
       if (error.status === 401) {
         return errorResponse(401, {
           error: 'API_AUTH_FAILED',

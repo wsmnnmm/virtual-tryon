@@ -2,6 +2,13 @@
 
 /* eslint-disable @next/next/no-img-element */
 import { FormEvent, useMemo, useState } from 'react'
+import { Upload, Shirt, User, Sparkles, RotateCcw, Download, ImageIcon, Loader2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Label } from '@/components/ui/label'
+import { Progress } from '@/components/ui/progress'
+import { cn } from '@/lib/utils'
 
 type UiState = 'idle' | 'uploading' | 'creating' | 'success' | 'error'
 type PickerType = 'sample' | 'upload'
@@ -174,154 +181,345 @@ export default function Page() {
   const personDisplayUrl = personPickerType === 'sample' ? personSampleUrl : personPreview
   const garmentDisplayUrl = garmentPickerType === 'sample' ? garmentSampleUrl : garmentPreview
 
-  const busyText = state === 'uploading' ? 'Uploading...' : state === 'creating' ? 'Generating...' : 'Generate Try-On'
+  const isLoading = state === 'uploading' || state === 'creating'
+  const loadingText = state === 'uploading' ? '正在上传图片...' : state === 'creating' ? '正在生成试穿效果...' : ''
 
   return (
-    <main className="container">
-      <header className="hero">
-        <h1>Try On Any Outfit</h1>
-        <p>上传人物照 + 服饰图，1 步生成试穿结果</p>
-        <p className="tries">Simple · Fast · Easy</p>
+    <main className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      {/* Header */}
+      <header className="border-b border-gray-200 bg-white/80 backdrop-blur-md sticky top-0 z-10">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-gray-900 flex items-center justify-center shadow-lg">
+              <Shirt className="h-5 w-5 text-white" />
+            </div>
+            <div className="text-center">
+              <h1 className="text-2xl font-bold tracking-tight text-gray-900">AI 虚拟试穿</h1>
+              <p className="text-xs text-gray-500">上传人物照 + 服饰图，AI 智能生成试穿效果</p>
+            </div>
+          </div>
+        </div>
       </header>
 
-      <form onSubmit={onSubmit}>
-        <div className="grid-two">
-          <section className="card">
-            <h2 className="section-title">Your Photo</h2>
-            <p className="section-subtitle">选择示例人物或上传自己的照片</p>
+      {/* Hero Section */}
+      <section className="container mx-auto px-4 pt-10 pb-6">
+        <div className="text-center max-w-2xl mx-auto">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-900 text-white text-sm font-medium mb-4">
+            <Sparkles className="h-4 w-4" />
+            <span>基于阿里云 DashScope AI 模型</span>
+          </div>
+          <h2 className="text-4xl font-bold tracking-tight text-gray-900 mb-3">
+            试试 AI 换装效果
+          </h2>
+          <p className="text-gray-500 text-lg">
+            选择一张人物照片和一件服装，AI 将在几秒钟内生成试穿效果
+          </p>
+        </div>
+      </section>
 
-            <div className="picker-tabs">
-              <button type="button" className={`tab-btn ${personPickerType === 'sample' ? 'active' : ''}`} onClick={() => setPersonPickerType('sample')}>
-                示例人物
-              </button>
-              <button type="button" className={`tab-btn ${personPickerType === 'upload' ? 'active' : ''}`} onClick={() => setPersonPickerType('upload')}>
-                上传人物
-              </button>
-            </div>
-
-            {personPickerType === 'sample' ? (
-              <div className="samples-grid two">
-                {PERSON_SAMPLES.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className={`sample-item ${personSampleUrl === item.url ? 'active' : ''}`}
-                    onClick={() => setPersonSampleUrl(item.url)}
-                  >
-                    <img src={item.url} alt={item.name} />
-                    <span>{item.name}</span>
-                  </button>
-                ))}
+      {/* Main Form */}
+      <form onSubmit={onSubmit} className="container mx-auto px-4 pb-16">
+        <div className="grid lg:grid-cols-2 gap-6 max-w-5xl mx-auto">
+          {/* Person Card */}
+          <Card className="overflow-hidden">
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center">
+                  <User className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <CardTitle>人物照片</CardTitle>
+                  <p className="text-sm text-gray-500 mt-0.5">选择示例或上传自己的照片</p>
+                </div>
               </div>
-            ) : (
-              <>
-                <label className="field-label">Person Photo</label>
-                <p className="field-tip">建议全身站姿、光线清晰</p>
-                <input
-                  className="input"
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] ?? null
-                    setPersonFile(file)
-                    setPersonPreview(file ? URL.createObjectURL(file) : '')
-                  }}
-                />
-              </>
-            )}
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Tabs value={personPickerType} onValueChange={(v) => setPersonPickerType(v as PickerType)}>
+                <TabsList className="w-full">
+                  <TabsTrigger value="sample" className="flex-1">
+                    <ImageIcon className="h-4 w-4 mr-2" />
+                    示例图片
+                  </TabsTrigger>
+                  <TabsTrigger value="upload" className="flex-1">
+                    <Upload className="h-4 w-4 mr-2" />
+                    上传照片
+                  </TabsTrigger>
+                </TabsList>
 
-            <div className="preview-box">
-              {personDisplayUrl ? <img src={personDisplayUrl} alt="person" className="preview-image" /> : 'Preview'}
-            </div>
-          </section>
+                <TabsContent value="sample" className="mt-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    {PERSON_SAMPLES.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setPersonSampleUrl(item.url)}
+                        className={cn(
+                          'relative rounded-xl overflow-hidden border-2 transition-all duration-200 aspect-[3/4] group hover:shadow-md',
+                          personSampleUrl === item.url
+                            ? 'border-gray-900 shadow-md ring-2 ring-gray-900 ring-offset-2'
+                            : 'border-gray-200 hover:border-gray-300',
+                        )}
+                      >
+                        <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
+                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-3">
+                          <p className="text-white text-sm font-medium">{item.name}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </TabsContent>
 
-          <section className="card">
-            <h2 className="section-title">Clothing Item</h2>
-            <p className="section-subtitle">选择示例服饰或上传自己的服饰图</p>
+                <TabsContent value="upload" className="mt-4">
+                  <div className="space-y-3">
+                    <Label htmlFor="person-upload">上传人物照片</Label>
+                    <p className="text-xs text-gray-500 -mt-1">建议全身站姿，光线清晰</p>
+                    <div className="relative">
+                      <input
+                        id="person-upload"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] ?? null
+                          setPersonFile(file)
+                          setPersonPreview(file ? URL.createObjectURL(file) : '')
+                        }}
+                        className="hidden"
+                      />
+                      <label
+                        htmlFor="person-upload"
+                        className="flex flex-col items-center justify-center w-full h-48 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 cursor-pointer hover:bg-gray-100 hover:border-gray-400 transition-all duration-200"
+                      >
+                        <Upload className="h-10 w-10 text-gray-400 mb-3" />
+                        <p className="text-sm text-gray-600 font-medium">
+                          {personFile ? personFile.name : '点击选择图片'}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">支持 JPG、PNG、WebP</p>
+                      </label>
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
 
-            <div className="picker-tabs">
-              <button type="button" className={`tab-btn ${garmentPickerType === 'sample' ? 'active' : ''}`} onClick={() => setGarmentPickerType('sample')}>
-                示例服饰
-              </button>
-              <button type="button" className={`tab-btn ${garmentPickerType === 'upload' ? 'active' : ''}`} onClick={() => setGarmentPickerType('upload')}>
-                上传服饰
-              </button>
-            </div>
-
-            {garmentPickerType === 'sample' ? (
-              <div className="samples-grid four">
-                {GARMENT_SAMPLES.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className={`sample-item ${garmentSampleUrl === item.url ? 'active' : ''}`}
-                    onClick={() => setGarmentSampleUrl(item.url)}
-                  >
-                    <img src={item.url} alt={item.name} />
-                    <span>{item.name}</span>
-                  </button>
-                ))}
+              {/* Preview */}
+              <div className="mt-4">
+                <p className="text-sm font-medium text-gray-700 mb-2">预览</p>
+                <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
+                  {personDisplayUrl ? (
+                    <img src={personDisplayUrl} alt="person" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
+                      <ImageIcon className="h-12 w-12 mb-2" />
+                      <p className="text-sm">暂无预览</p>
+                    </div>
+                  )}
+                </div>
               </div>
-            ) : (
-              <>
-                <label className="field-label">Garment Photo</label>
-                <p className="field-tip">支持上衣、裤装、连衣裙等</p>
-                <input
-                  className="input"
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] ?? null
-                    setGarmentFile(file)
-                    setGarmentPreview(file ? URL.createObjectURL(file) : '')
-                  }}
-                />
-              </>
-            )}
+            </CardContent>
+          </Card>
 
-            <div className="preview-box">
-              {garmentDisplayUrl ? <img src={garmentDisplayUrl} alt="garment" className="preview-image" /> : 'Preview'}
-            </div>
-          </section>
+          {/* Garment Card */}
+          <Card className="overflow-hidden">
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-purple-50 flex items-center justify-center">
+                  <Shirt className="h-5 w-5 text-purple-600" />
+                </div>
+                <div>
+                  <CardTitle>服装图片</CardTitle>
+                  <p className="text-sm text-gray-500 mt-0.5">选择示例或上传自己的服装图</p>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Tabs value={garmentPickerType} onValueChange={(v) => setGarmentPickerType(v as PickerType)}>
+                <TabsList className="w-full">
+                  <TabsTrigger value="sample" className="flex-1">
+                    <ImageIcon className="h-4 w-4 mr-2" />
+                    示例图片
+                  </TabsTrigger>
+                  <TabsTrigger value="upload" className="flex-1">
+                    <Upload className="h-4 w-4 mr-2" />
+                    上传服装
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="sample" className="mt-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    {GARMENT_SAMPLES.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setGarmentSampleUrl(item.url)}
+                        className={cn(
+                          'relative rounded-xl overflow-hidden border-2 transition-all duration-200 aspect-square group hover:shadow-md',
+                          garmentSampleUrl === item.url
+                            ? 'border-gray-900 shadow-md ring-2 ring-gray-900 ring-offset-2'
+                            : 'border-gray-200 hover:border-gray-300',
+                        )}
+                      >
+                        <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
+                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-3">
+                          <p className="text-white text-sm font-medium">{item.name}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="upload" className="mt-4">
+                  <div className="space-y-3">
+                    <Label htmlFor="garment-upload">上传服装图片</Label>
+                    <p className="text-xs text-gray-500 -mt-1">支持上衣、裤装、连衣裙等</p>
+                    <div className="relative">
+                      <input
+                        id="garment-upload"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] ?? null
+                          setGarmentFile(file)
+                          setGarmentPreview(file ? URL.createObjectURL(file) : '')
+                        }}
+                        className="hidden"
+                      />
+                      <label
+                        htmlFor="garment-upload"
+                        className="flex flex-col items-center justify-center w-full h-48 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 cursor-pointer hover:bg-gray-100 hover:border-gray-400 transition-all duration-200"
+                      >
+                        <Upload className="h-10 w-10 text-gray-400 mb-3" />
+                        <p className="text-sm text-gray-600 font-medium">
+                          {garmentFile ? garmentFile.name : '点击选择图片'}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">支持 JPG、PNG、WebP</p>
+                      </label>
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
+
+              {/* Preview */}
+              <div className="mt-4">
+                <p className="text-sm font-medium text-gray-700 mb-2">预览</p>
+                <div className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
+                  {garmentDisplayUrl ? (
+                    <img src={garmentDisplayUrl} alt="garment" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
+                      <ImageIcon className="h-12 w-12 mb-2" />
+                      <p className="text-sm">暂无预览</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        <div className="actions-row">
-          <button className="button-primary" type="submit" disabled={!canSubmit}>
-            {busyText}
-          </button>
-          <button className="button-secondary" type="button" onClick={resetAll}>
-            Try Another
-          </button>
-        </div>
+        {/* Error Message */}
+        {error && (
+          <div className="max-w-5xl mx-auto mt-6">
+            <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-red-600 text-sm font-medium">
+              {error}
+            </div>
+          </div>
+        )}
+
+        {/* Loading State */}
+        {isLoading && (
+          <div className="max-w-5xl mx-auto mt-6">
+            <Card>
+              <CardContent className="py-8">
+                <div className="flex flex-col items-center gap-4">
+                  <Loader2 className="h-10 w-10 text-gray-900 animate-spin" />
+                  <div className="text-center">
+                    <p className="font-semibold text-gray-900">{loadingText}</p>
+                    <p className="text-sm text-gray-500 mt-1">请稍候...</p>
+                  </div>
+                  <Progress value={state === 'uploading' ? 30 : 70} className="w-full max-w-xs" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Result */}
+        {result?.output && (
+          <div className="max-w-5xl mx-auto mt-6">
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-green-50 flex items-center justify-center">
+                    <Sparkles className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div>
+                    <CardTitle>试穿结果</CardTitle>
+                    <p className="text-sm text-gray-500 mt-0.5">AI 生成的试穿效果</p>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
+                  {result.output.image_url ? (
+                    <img src={result.output.image_url} alt="try-on result" className="w-full h-full object-contain" />
+                  ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
+                      <Loader2 className="h-12 w-12 mb-2 animate-spin" />
+                      <p className="text-sm">正在生成...</p>
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-3">
+                  <Button variant="secondary" className="flex-1" onClick={resetAll}>
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    重新生成
+                  </Button>
+                  {result.output.image_url && (
+                    <Button variant="default" className="flex-1" asChild>
+                      <a href={result.output.image_url} download>
+                        <Download className="h-4 w-4 mr-2" />
+                        下载图片
+                      </a>
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Submit Button */}
+        {!result?.output && (
+          <div className="max-w-5xl mx-auto mt-6">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button
+                type="submit"
+                size="lg"
+                className="flex-1 max-w-md text-base shadow-lg"
+                disabled={!canSubmit || isLoading}
+                isLoading={isLoading}
+              >
+                {isLoading ? loadingText : (
+                  <>
+                    <Sparkles className="h-5 w-5 mr-2" />
+                    生成试穿效果
+                  </>
+                )}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="lg"
+                className="flex-1 max-w-md"
+                onClick={resetAll}
+                disabled={isLoading}
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                重置
+              </Button>
+            </div>
+          </div>
+        )}
       </form>
-
-      {error && <p className="error">{error}</p>}
-
-      {result?.output && (
-        <section className="card result-card">
-          <div className="result-head">
-            <h2 className="result-title">✧ Your Try-On Result</h2>
-            <p className="result-subtitle">This is a preview for reference only</p>
-          </div>
-
-          <div className="result-media">
-            {result.output.image_url ? (
-              <img src={result.output.image_url} alt="try-on result" className="result-image fit" />
-            ) : (
-              <div className="result-placeholder">任务已创建，正在等待最终图片。</div>
-            )}
-          </div>
-
-          <div className="result-actions">
-            <button className="button-light" type="button" onClick={resetAll}>
-              ↻ Try Another
-            </button>
-            <a className="button-dark" href={result.output.image_url ?? '#'} download>
-              ⇩ Download
-            </a>
-          </div>
-        </section>
-      )}
     </main>
   )
 }
