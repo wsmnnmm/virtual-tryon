@@ -2,7 +2,7 @@
 
 import { FormEvent, useMemo, useState } from 'react'
 
-type UiState = 'idle' | 'loading' | 'success' | 'error'
+type UiState = 'idle' | 'uploading' | 'creating' | 'success' | 'error'
 
 interface TryOnApiResponse {
   output?: {
@@ -13,32 +13,67 @@ interface TryOnApiResponse {
   usage?: {
     image_count?: number
   }
+  requestId?: string
+}
+
+interface UploadApiResponse {
+  success: boolean
+  publicUrl?: string
   error?: string
   message?: string
-  requestId?: string
-  retryAfter?: string | null
 }
 
 export default function Page() {
-  const [personImageUrl, setPersonImageUrl] = useState('')
-  const [topGarmentUrl, setTopGarmentUrl] = useState('')
+  const [personFile, setPersonFile] = useState<File | null>(null)
+  const [garmentFile, setGarmentFile] = useState<File | null>(null)
+  const [personPreview, setPersonPreview] = useState<string>('')
+  const [garmentPreview, setGarmentPreview] = useState<string>('')
   const [state, setState] = useState<UiState>('idle')
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<TryOnApiResponse | null>(null)
 
   const canSubmit = useMemo(() => {
-    return Boolean(personImageUrl.trim() && topGarmentUrl.trim()) && state !== 'loading'
-  }, [personImageUrl, topGarmentUrl, state])
+    return Boolean(personFile && garmentFile) && state !== 'uploading' && state !== 'creating'
+  }, [personFile, garmentFile, state])
+
+  const uploadOne = async (file: File, scene: 'person' | 'garment') => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('scene', scene)
+
+    const response = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData,
+    })
+
+    const payload = (await response.json()) as UploadApiResponse
+
+    if (!response.ok || !payload.success || !payload.publicUrl) {
+      throw new Error(payload.message ?? payload.error ?? '上传失败')
+    }
+
+    return payload.publicUrl
+  }
 
   const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (!canSubmit) return
 
-    setState('loading')
+    if (!personFile || !garmentFile || !canSubmit) {
+      return
+    }
+
+    setState('uploading')
     setError(null)
     setResult(null)
 
     try {
+      const [personImageUrl, topGarmentUrl] = await Promise.all([
+        uploadOne(personFile, 'person'),
+        uploadOne(garmentFile, 'garment'),
+      ])
+
+      setState('creating')
+
       const response = await fetch('/api/tryon', {
         method: 'POST',
         headers: {
@@ -47,22 +82,24 @@ export default function Page() {
         body: JSON.stringify({ personImageUrl, topGarmentUrl }),
       })
 
-      const payload = (await response.json()) as TryOnApiResponse
+      const payload = (await response.json()) as TryOnApiResponse & {
+        error?: string
+        message?: string
+        retryAfter?: string
+      }
 
       if (!response.ok) {
         if (response.status === 401) {
           throw new Error('401：API Key 无效或已过期，请检查服务端配置')
         }
         if (response.status === 429) {
-          throw new Error(
-            `429：调用频率受限，请稍后重试${payload.retryAfter ? `（retry-after: ${payload.retryAfter}）` : ''}`,
-          )
+          throw new Error(`429：调用频率受限，请稍后重试${payload.retryAfter ? `（retry-after: ${payload.retryAfter}）` : ''}`)
         }
         if (response.status === 504) {
           throw new Error('timeout：上游服务超时，请稍后重试')
         }
 
-        throw new Error(payload.message ?? '请求失败，请稍后重试')
+        throw new Error(payload.message ?? payload.error ?? '请求失败，请稍后重试')
       }
 
       setResult(payload)
@@ -72,6 +109,8 @@ export default function Page() {
       setState('error')
     }
   }
+
+  const busyText = state === 'uploading' ? 'Uploading images...' : state === 'creating' ? 'Creating task...' : 'Generate Try-On'
 
   return (
     <main className="container fade-in">
@@ -87,17 +126,21 @@ export default function Page() {
           <p className="section-subtitle">Upload a full-body photo of yourself</p>
 
           <label className="field">
-            <span className="field-label">Person Photo URL</span>
+            <span className="field-label">Person Photo</span>
             <input
               className="input"
-              placeholder="https://.../person.jpg"
-              value={personImageUrl}
-              onChange={(e) => setPersonImageUrl(e.target.value)}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={(e) => {
+                const file = e.target.files?.[0] ?? null
+                setPersonFile(file)
+                setPersonPreview(file ? URL.createObjectURL(file) : '')
+              }}
             />
           </label>
 
           <div className="preview-box frosted">
-            {personImageUrl ? <img src={personImageUrl} alt="person" className="preview-image" /> : 'Preview'}
+            {personPreview ? <img src={personPreview} alt="person" className="preview-image" /> : 'Preview'}
           </div>
         </section>
 
@@ -106,34 +149,36 @@ export default function Page() {
           <p className="section-subtitle">Upload the clothing you want to try</p>
 
           <label className="field">
-            <span className="field-label">Garment Photo URL</span>
+            <span className="field-label">Garment Photo</span>
             <input
               className="input"
-              placeholder="https://.../garment.jpg"
-              value={topGarmentUrl}
-              onChange={(e) => setTopGarmentUrl(e.target.value)}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={(e) => {
+                const file = e.target.files?.[0] ?? null
+                setGarmentFile(file)
+                setGarmentPreview(file ? URL.createObjectURL(file) : '')
+              }}
             />
           </label>
 
           <div className="preview-box frosted">
-            {topGarmentUrl ? (
-              <img src={topGarmentUrl} alt="garment" className="preview-image" />
-            ) : (
-              'Preview'
-            )}
+            {garmentPreview ? <img src={garmentPreview} alt="garment" className="preview-image" /> : 'Preview'}
           </div>
         </section>
 
         <div className="actions-row action-buttons">
           <button className="button-primary" type="submit" disabled={!canSubmit}>
-            {state === 'loading' ? 'Creating task...' : 'Generate Try-On'}
+            {busyText}
           </button>
           <button
             className="button-secondary"
             type="button"
             onClick={() => {
-              setPersonImageUrl('')
-              setTopGarmentUrl('')
+              setPersonFile(null)
+              setGarmentFile(null)
+              setPersonPreview('')
+              setGarmentPreview('')
               setResult(null)
               setError(null)
               setState('idle')
@@ -162,15 +207,6 @@ export default function Page() {
             ) : (
               <div className="result-placeholder">Task created. Polling endpoint can fetch final image later.</div>
             )}
-          </div>
-
-          <div className="action-buttons result-actions">
-            <button className="button-secondary" type="button">
-              Download
-            </button>
-            <button className="button-secondary" type="button">
-              Share
-            </button>
           </div>
 
           <div className="meta-row">

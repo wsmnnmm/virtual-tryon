@@ -17,9 +17,9 @@ export class HttpTimeoutError extends Error {}
 
 interface RequestOptions {
   url: string
-  method?: 'GET' | 'POST'
+  method?: 'GET' | 'POST' | 'DELETE'
   headers?: HeadersInit
-  body?: string
+  body?: BodyInit
   timeoutMs?: number
 }
 
