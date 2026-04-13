@@ -74,7 +74,7 @@ export default function Page() {
   }
 
   return (
-    <main className="container">
+    <main className="container fade-in">
       <header className="hero">
         <h1>Try On Any Outfit</h1>
         <p>Upload your photo and a clothing item to preview the result.</p>
@@ -82,7 +82,7 @@ export default function Page() {
       </header>
 
       <form onSubmit={onSubmit} className="grid-two">
-        <section className="card">
+        <section className="card float-card">
           <div className="section-title">Your Photo</div>
           <p className="section-subtitle">Upload a full-body photo of yourself</p>
 
@@ -96,12 +96,12 @@ export default function Page() {
             />
           </label>
 
-          <div className="preview-box">
+          <div className="preview-box frosted">
             {personImageUrl ? <img src={personImageUrl} alt="person" className="preview-image" /> : 'Preview'}
           </div>
         </section>
 
-        <section className="card">
+        <section className="card float-card">
           <div className="section-title">Clothing Item</div>
           <p className="section-subtitle">Upload the clothing you want to try</p>
 
@@ -115,7 +115,7 @@ export default function Page() {
             />
           </label>
 
-          <div className="preview-box">
+          <div className="preview-box frosted">
             {topGarmentUrl ? (
               <img src={topGarmentUrl} alt="garment" className="preview-image" />
             ) : (
@@ -124,9 +124,22 @@ export default function Page() {
           </div>
         </section>
 
-        <div className="actions-row">
+        <div className="actions-row action-buttons">
           <button className="button-primary" type="submit" disabled={!canSubmit}>
             {state === 'loading' ? 'Creating task...' : 'Generate Try-On'}
+          </button>
+          <button
+            className="button-secondary"
+            type="button"
+            onClick={() => {
+              setPersonImageUrl('')
+              setTopGarmentUrl('')
+              setResult(null)
+              setError(null)
+              setState('idle')
+            }}
+          >
+            Try Another
           </button>
         </div>
       </form>
@@ -134,7 +147,7 @@ export default function Page() {
       {error && <p className="error">{error}</p>}
 
       {result?.output && (
-        <section className="card result-card">
+        <section className="card result-card fade-up">
           <div className="result-head">
             <div>
               <div className="section-title">Your Try-On Result</div>
@@ -143,12 +156,21 @@ export default function Page() {
             <span className="status-chip">{result.output.task_status ?? '-'}</span>
           </div>
 
-          <div className="result-media">
+          <div className="result-media frosted">
             {result.output.image_url ? (
               <img src={result.output.image_url} alt="try-on result" className="result-image" />
             ) : (
               <div className="result-placeholder">Task created. Polling endpoint can fetch final image later.</div>
             )}
+          </div>
+
+          <div className="action-buttons result-actions">
+            <button className="button-secondary" type="button">
+              Download
+            </button>
+            <button className="button-secondary" type="button">
+              Share
+            </button>
           </div>
 
           <div className="meta-row">
