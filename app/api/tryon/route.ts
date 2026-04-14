@@ -2,13 +2,15 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
 import { HttpClientError, HttpTimeoutError } from '@/lib/services/httpClient'
-import { createTryOnTaskAndWait } from '@/lib/services/tryonService'
+import { createRefinerTask, createTryOnTask, waitForTask } from '@/lib/services/tryonService'
 import type { ApiErrorPayload } from '@/types/tryon'
 
 const requestSchema = z.object({
   personImageUrl: z.string().url(),
   topGarmentUrl: z.string().url().optional(),
   bottomGarmentUrl: z.string().url().optional(),
+  refine: z.boolean().optional(),
+  gender: z.enum(['man', 'woman']).optional(),
 })
 
 function errorResponse(status: number, payload: ApiErrorPayload) {
@@ -30,7 +32,7 @@ export async function POST(req: Request) {
       })
     }
 
-    const { topGarmentUrl, bottomGarmentUrl } = parsed.data
+    const { topGarmentUrl, bottomGarmentUrl, refine, gender } = parsed.data
     if (!topGarmentUrl && !bottomGarmentUrl) {
       return errorResponse(400, {
         error: 'INVALID_INPUT',
@@ -39,16 +41,52 @@ export async function POST(req: Request) {
       })
     }
 
-    const result = await createTryOnTaskAndWait({
+    const tryOn = await createTryOnTask({
       personImageUrl: parsed.data.personImageUrl,
       topGarmentUrl,
       bottomGarmentUrl,
     })
 
+    const coarseTaskId = tryOn.output?.task_id
+    const coarseResult = coarseTaskId ? await waitForTask(coarseTaskId) : tryOn
+    const coarseImageUrl = coarseResult.output?.image_url ?? coarseResult.output?.results?.[0]?.url
+
+    if (!refine) {
+      return NextResponse.json({
+        requestId,
+        output: coarseResult.output,
+        usage: coarseResult.usage,
+      })
+    }
+
+    if (!coarseImageUrl) {
+      return errorResponse(502, {
+        error: 'UPSTREAM_ERROR',
+        message: 'Try-on result image is missing',
+        requestId,
+      })
+    }
+
+    const refinedTask = await createRefinerTask({
+      personImageUrl: parsed.data.personImageUrl,
+      topGarmentUrl,
+      bottomGarmentUrl,
+      coarseImageUrl,
+      gender,
+    })
+
+    const refinedTaskId = refinedTask.output?.task_id
+    const refinedResult = refinedTaskId ? await waitForTask(refinedTaskId) : refinedTask
+    const refinedImageUrl = refinedResult.output?.image_url ?? refinedResult.output?.results?.[0]?.url
+
     return NextResponse.json({
       requestId,
-      output: result.output,
-      usage: result.usage,
+      output: {
+        ...refinedResult.output,
+        image_url: refinedImageUrl ?? coarseImageUrl,
+        coarse_image_url: coarseImageUrl,
+      },
+      usage: refinedResult.usage,
     })
   } catch (error) {
     if (error instanceof HttpTimeoutError) {

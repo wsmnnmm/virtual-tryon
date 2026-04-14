@@ -23,29 +23,13 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-export async function createTryOnTask(input: TryOnCreateRequest) {
+async function createDashScopeTask(payload: DashScopeCreateTaskRequest, routeLabel: string) {
   ensureEnv()
-
-  const requestPayload: DashScopeCreateTaskRequest = {
-    model: 'aitryon-plus',
-    input: {
-      person_image_url: input.personImageUrl,
-      top_garment_url: input.topGarmentUrl,
-      bottom_garment_url: input.bottomGarmentUrl,
-    },
-    parameters: {
-      resolution: -1,
-      restore_face: true,
-    },
-  }
 
   const start = Date.now()
   logger.info({
     event: 'tryon.request.start',
-    route: 'dashscope.createTask',
-    hasPersonImageUrl: Boolean(input.personImageUrl),
-    hasTopGarment: Boolean(input.topGarmentUrl),
-    hasBottomGarment: Boolean(input.bottomGarmentUrl),
+    route: routeLabel,
   })
 
   try {
@@ -58,12 +42,12 @@ export async function createTryOnTask(input: TryOnCreateRequest) {
         'Content-Type': 'application/json',
         'X-DashScope-Async': 'enable',
       },
-      body: JSON.stringify(requestPayload),
+      body: JSON.stringify(payload),
     })
 
     logger.info({
       event: 'tryon.request.success',
-      route: 'dashscope.createTask',
+      route: routeLabel,
       elapsedMs: Date.now() - start,
       taskId: response.output?.task_id,
       taskStatus: response.output?.task_status,
@@ -77,7 +61,7 @@ export async function createTryOnTask(input: TryOnCreateRequest) {
     if (error instanceof HttpTimeoutError) {
       logger.error({
         event: 'tryon.request.error',
-        route: 'dashscope.createTask',
+        route: routeLabel,
         errorType: 'timeout',
         elapsedMs: Date.now() - start,
       })
@@ -87,7 +71,7 @@ export async function createTryOnTask(input: TryOnCreateRequest) {
     if (error instanceof HttpClientError) {
       logger.error({
         event: 'tryon.request.error',
-        route: 'dashscope.createTask',
+        route: routeLabel,
         errorType: 'http_error',
         status: error.status,
         elapsedMs: Date.now() - start,
@@ -99,7 +83,7 @@ export async function createTryOnTask(input: TryOnCreateRequest) {
 
     logger.error({
       event: 'tryon.request.error',
-      route: 'dashscope.createTask',
+      route: routeLabel,
       errorType: 'unknown',
       elapsedMs: Date.now() - start,
       message: error instanceof Error ? error.message : 'unknown error',
@@ -107,6 +91,40 @@ export async function createTryOnTask(input: TryOnCreateRequest) {
 
     throw error
   }
+}
+
+export async function createTryOnTask(input: TryOnCreateRequest) {
+  const requestPayload: DashScopeCreateTaskRequest = {
+    model: 'aitryon-plus',
+    input: {
+      person_image_url: input.personImageUrl,
+      top_garment_url: input.topGarmentUrl,
+      bottom_garment_url: input.bottomGarmentUrl,
+    },
+    parameters: {
+      resolution: -1,
+      restore_face: true,
+    },
+  }
+
+  return createDashScopeTask(requestPayload, 'dashscope.createTryOnTask')
+}
+
+export async function createRefinerTask(input: { personImageUrl: string; topGarmentUrl?: string; bottomGarmentUrl?: string; coarseImageUrl: string; gender?: 'man' | 'woman' }) {
+  const requestPayload: DashScopeCreateTaskRequest = {
+    model: 'aitryon-refiner',
+    input: {
+      person_image_url: input.personImageUrl,
+      top_garment_url: input.topGarmentUrl,
+      bottom_garment_url: input.bottomGarmentUrl,
+      coarse_image_url: input.coarseImageUrl,
+    } as DashScopeCreateTaskRequest['input'] & { coarse_image_url: string },
+    parameters: {
+      gender: input.gender,
+    } as DashScopeCreateTaskRequest['parameters'] & { gender?: 'man' | 'woman' },
+  }
+
+  return createDashScopeTask(requestPayload, 'dashscope.createRefinerTask')
 }
 
 export async function queryTryOnTask(taskId: string) {
@@ -123,14 +141,7 @@ export async function queryTryOnTask(taskId: string) {
   })
 }
 
-export async function createTryOnTaskAndWait(input: TryOnCreateRequest) {
-  const created = await createTryOnTask(input)
-  const taskId = created.output?.task_id
-
-  if (!taskId) {
-    return created
-  }
-
+export async function waitForTask(taskId: string) {
   const startedAt = Date.now()
 
   while (Date.now() - startedAt < pollTimeoutMs) {

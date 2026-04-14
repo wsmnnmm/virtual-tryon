@@ -5,15 +5,17 @@ export interface TryOnCreateRequest {
 }
 
 export interface DashScopeCreateTaskRequest {
-  model: 'aitryon-plus'
+  model: 'aitryon-plus' | 'aitryon-refiner'
   input: {
-    person_image_url: string
+    person_image_url?: string
     top_garment_url?: string
     bottom_garment_url?: string
+    coarse_image_url?: string
   }
   parameters?: {
     resolution?: number
     restore_face?: boolean
+    gender?: 'man' | 'woman'
   }
 }
 
