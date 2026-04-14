@@ -35,36 +35,21 @@ interface UploadApiResponse {
 const PERSON_SAMPLES = [
   {
     id: 'p1',
-    name: 'Studio 模特',
-    url: 'https://coze-coding-project.tos.coze.site/coze_storage_7628204427257708580/uploads/1776082041699_ast_mnx5e25f_u73grjwd_68c012d5.jpg?sign=1778674042-23f3d5e294-0-51ba46e30d65b33685231b72e59ec7ecf2d1f2789f0a73fae2cf230265e3aa90',
-  },
-  {
-    id: 'p2',
-    name: '街拍风格',
-    url: 'https://coze-coding-project.tos.coze.site/coze_storage_7628204427257708580/uploads/1776082093383_ast_mnx5f613_lg384m6y_a923f5e3.jpg?sign=1778674093-210db0bf52-0-58160287910092e680e7212b04142c07cf255a9fbd22e7dc500348281dc22b07',
+    name: 'AI试衣模特',
+    url: 'https://help-static-aliyun-doc.aliyuncs.com/file-manage-files/zh-CN/20250626/ubznva/model_person.png',
   },
 ]
 
 const GARMENT_SAMPLES = [
   {
     id: 'g1',
-    name: '蓝色上衣',
-    url: 'https://coze-coding-project.tos.coze.site/coze_storage_7628204427257708580/uploads/1776082045598_ast_mnx5e55q_f4jxrnbf_cc32b983.jpg?sign=1778674046-7ccd8c91ec-0-d56bf3a70da77d1c9383f8d28e0688c976e861136395d6e38a2c1d0d468782cb',
+    name: '短袖上衣',
+    url: 'https://help-static-aliyun-doc.aliyuncs.com/file-manage-files/zh-CN/20250626/epousa/short_sleeve.jpeg',
   },
   {
     id: 'g2',
-    name: '连衣裙',
-    url: 'https://coze-coding-project.tos.coze.site/coze_storage_7628204427257708580/uploads/1776082094007_ast_mnx5f6if_vt0l8pc4_af05a376.jpg?sign=1778674094-32862261ae-0-ce7ed2667073bb06c7392aff6c220a94115501d8988d1a23ee0e5ebdb071eaef',
-  },
-  {
-    id: 'g3',
-    name: '男士西装',
-    url: 'https://coze-coding-project.tos.coze.site/coze_storage_7628204427257708580/uploads/1776082094520_ast_mnx5f6wo_jaefxx3i_e2ffade6.jpg?sign=1778674094-2e90ba3141-0-e8bfa8e937e6ac7c1cff6d145589fa6ca0845d1ba80f28c5b98cb800fcc532bb',
-  },
-  {
-    id: 'g4',
-    name: '休闲卫衣',
-    url: 'https://coze-coding-project.tos.coze.site/coze_storage_7628204427257708580/uploads/1776082117963_ast_mnx5fozv_53xn3hzg_072f59f5.jpg?sign=1778674118-afe4a1615c-0-fd900eed13911860ae057a1c4c3888ec8801034c73b089cc81c2d6a0616daddc',
+    name: '裤子下装',
+    url: 'https://help-static-aliyun-doc.aliyuncs.com/file-manage-files/zh-CN/20250626/rchumi/pants.jpeg',
   },
 ]
 
@@ -236,11 +221,11 @@ export default function Page() {
             <CardContent className="space-y-4">
               <Tabs value={personPickerType} onValueChange={(v) => setPersonPickerType(v as PickerType)}>
                 <TabsList className="w-full">
-                  <TabsTrigger value="sample" className="flex-1">
+                  <TabsTrigger value="sample" type="button" className="flex-1">
                     <ImageIcon className="h-4 w-4 mr-2" />
                     示例图片
                   </TabsTrigger>
-                  <TabsTrigger value="upload" className="flex-1">
+                  <TabsTrigger value="upload" type="button" className="flex-1">
                     <Upload className="h-4 w-4 mr-2" />
                     上传照片
                   </TabsTrigger>
@@ -333,11 +318,11 @@ export default function Page() {
             <CardContent className="space-y-4">
               <Tabs value={garmentPickerType} onValueChange={(v) => setGarmentPickerType(v as PickerType)}>
                 <TabsList className="w-full">
-                  <TabsTrigger value="sample" className="flex-1">
+                  <TabsTrigger value="sample" type="button" className="flex-1">
                     <ImageIcon className="h-4 w-4 mr-2" />
                     示例图片
                   </TabsTrigger>
-                  <TabsTrigger value="upload" className="flex-1">
+                  <TabsTrigger value="upload" type="button" className="flex-1">
                     <Upload className="h-4 w-4 mr-2" />
                     上传服装
                   </TabsTrigger>

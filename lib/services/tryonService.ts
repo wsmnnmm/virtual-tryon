@@ -20,10 +20,15 @@ export async function createTryOnTask(input: TryOnCreateRequest) {
   ensureEnv()
 
   const requestPayload: DashScopeCreateTaskRequest = {
-    model: 'aitryon',
+    model: 'aitryon-plus',
     input: {
       person_image_url: input.personImageUrl,
       top_garment_url: input.topGarmentUrl,
+      bottom_garment_url: input.bottomGarmentUrl,
+    },
+    parameters: {
+      resolution: -1,
+      restore_face: true,
     },
   }
 
@@ -32,12 +37,13 @@ export async function createTryOnTask(input: TryOnCreateRequest) {
     event: 'tryon.request.start',
     route: 'dashscope.createTask',
     hasPersonImageUrl: Boolean(input.personImageUrl),
-    hasGarmentImageUrl: Boolean(input.topGarmentUrl),
+    hasTopGarment: Boolean(input.topGarmentUrl),
+    hasBottomGarment: Boolean(input.bottomGarmentUrl),
   })
 
   try {
     const response = await requestJson<DashScopeCreateTaskResponse>({
-      url: `${baseUrl}/api/v1/services/aigc/virtualtryon/top`,
+      url: `${baseUrl}/api/v1/services/aigc/image2image/image-synthesis/`,
       method: 'POST',
       timeoutMs,
       headers: {

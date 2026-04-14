@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c ':*)",
+      "Bash(curl -s -X POST https://dashscope.aliyuncs.com/api/v1/services/aigc/aitryon/aitryon -H 'Authorization: Bearer sk-a361a4c809c345f5b7f8d951e01f70fb' -H 'Content-Type: application/json' -H 'X-DashScope-Async: enable' -d '{\"model\":\"aitryon\",\"input\":{\"person_image_url\":\"https://img-1308446822.cos.ap-guangzhou.myqcloud.com/472_2.jpg\",\"top_garment_url\":\"https://img-1308446822.cos.ap-guangzhou.myqcloud.com/472_2.jpg\"}}')"
+    ]
+  }
+}

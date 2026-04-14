@@ -7,7 +7,8 @@ import type { ApiErrorPayload } from '@/types/tryon'
 
 const requestSchema = z.object({
   personImageUrl: z.string().url(),
-  topGarmentUrl: z.string().url(),
+  topGarmentUrl: z.string().url().optional(),
+  bottomGarmentUrl: z.string().url().optional(),
 })
 
 function errorResponse(status: number, payload: ApiErrorPayload) {
@@ -24,12 +25,25 @@ export async function POST(req: Request) {
     if (!parsed.success) {
       return errorResponse(400, {
         error: 'INVALID_INPUT',
-        message: 'personImageUrl and topGarmentUrl must be valid URL strings',
+        message: 'personImageUrl is required, and at least one of topGarmentUrl or bottomGarmentUrl must be provided',
         requestId,
       })
     }
 
-    const result = await createTryOnTask(parsed.data)
+    const { topGarmentUrl, bottomGarmentUrl } = parsed.data
+    if (!topGarmentUrl && !bottomGarmentUrl) {
+      return errorResponse(400, {
+        error: 'INVALID_INPUT',
+        message: 'At least one of topGarmentUrl or bottomGarmentUrl must be provided',
+        requestId,
+      })
+    }
+
+    const result = await createTryOnTask({
+      personImageUrl: parsed.data.personImageUrl,
+      topGarmentUrl,
+      bottomGarmentUrl,
+    })
 
     return NextResponse.json({
       requestId,

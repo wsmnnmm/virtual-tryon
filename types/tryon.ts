@@ -1,13 +1,19 @@
 export interface TryOnCreateRequest {
   personImageUrl: string
-  topGarmentUrl: string
+  topGarmentUrl?: string
+  bottomGarmentUrl?: string
 }
 
 export interface DashScopeCreateTaskRequest {
-  model: 'aitryon'
+  model: 'aitryon-plus'
   input: {
     person_image_url: string
-    top_garment_url: string
+    top_garment_url?: string
+    bottom_garment_url?: string
+  }
+  parameters?: {
+    resolution?: number
+    restore_face?: boolean
   }
 }
 
