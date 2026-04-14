@@ -21,6 +21,9 @@ export interface DashScopeTaskOutput {
   task_id: string
   task_status: string
   image_url?: string
+  results?: Array<{
+    url?: string
+  }>
 }
 
 export interface DashScopeCreateTaskResponse {
@@ -32,6 +35,8 @@ export interface DashScopeCreateTaskResponse {
   message?: string
   request_id?: string
 }
+
+export type DashScopeTaskQueryResponse = DashScopeCreateTaskResponse
 
 export interface ApiErrorPayload {
   error: string

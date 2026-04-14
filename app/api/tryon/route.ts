@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
 import { HttpClientError, HttpTimeoutError } from '@/lib/services/httpClient'
-import { createTryOnTask } from '@/lib/services/tryonService'
+import { createTryOnTaskAndWait } from '@/lib/services/tryonService'
 import type { ApiErrorPayload } from '@/types/tryon'
 
 const requestSchema = z.object({
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
       })
     }
 
-    const result = await createTryOnTask({
+    const result = await createTryOnTaskAndWait({
       personImageUrl: parsed.data.personImageUrl,
       topGarmentUrl,
       bottomGarmentUrl,

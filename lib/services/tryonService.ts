@@ -3,17 +3,24 @@ import { HttpClientError, HttpTimeoutError, requestJson } from '@/lib/services/h
 import type {
   DashScopeCreateTaskRequest,
   DashScopeCreateTaskResponse,
+  DashScopeTaskQueryResponse,
   TryOnCreateRequest,
 } from '@/types/tryon'
 
 const apiKey = process.env.TRYON_API_KEY
 const baseUrl = process.env.TRYON_API_BASE_URL ?? 'https://dashscope.aliyuncs.com'
 const timeoutMs = Number(process.env.TRYON_API_TIMEOUT_MS ?? '30000')
+const pollIntervalMs = Number(process.env.TRYON_POLL_INTERVAL_MS ?? '2000')
+const pollTimeoutMs = Number(process.env.TRYON_POLL_TIMEOUT_MS ?? '120000')
 
 function ensureEnv() {
   if (!apiKey) {
     throw new Error('TRYON_API_KEY is missing on server environment')
   }
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 export async function createTryOnTask(input: TryOnCreateRequest) {
@@ -100,4 +107,63 @@ export async function createTryOnTask(input: TryOnCreateRequest) {
 
     throw error
   }
+}
+
+export async function queryTryOnTask(taskId: string) {
+  ensureEnv()
+
+  return requestJson<DashScopeTaskQueryResponse>({
+    url: `${baseUrl}/api/v1/tasks/${taskId}`,
+    method: 'GET',
+    timeoutMs,
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+  })
+}
+
+export async function createTryOnTaskAndWait(input: TryOnCreateRequest) {
+  const created = await createTryOnTask(input)
+  const taskId = created.output?.task_id
+
+  if (!taskId) {
+    return created
+  }
+
+  const startedAt = Date.now()
+
+  while (Date.now() - startedAt < pollTimeoutMs) {
+    await sleep(pollIntervalMs)
+    const task = await queryTryOnTask(taskId)
+    const status = task.output?.task_status
+
+    if (status === 'SUCCEEDED') {
+      logger.info({
+        event: 'tryon.task.completed',
+        taskId,
+        elapsedMs: Date.now() - startedAt,
+      })
+      return task
+    }
+
+    if (status === 'FAILED' || status === 'CANCELED') {
+      logger.error({
+        event: 'tryon.task.failed',
+        taskId,
+        status,
+        elapsedMs: Date.now() - startedAt,
+      })
+      throw new HttpClientError('Try-on task failed', 502, task)
+    }
+
+    logger.info({
+      event: 'tryon.task.polling',
+      taskId,
+      status,
+      elapsedMs: Date.now() - startedAt,
+    })
+  }
+
+  throw new HttpTimeoutError(`Try-on task polling timed out in ${pollTimeoutMs}ms`)
 }

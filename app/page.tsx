@@ -18,6 +18,9 @@ interface TryOnApiResponse {
     task_id?: string
     task_status?: string
     image_url?: string
+    results?: Array<{
+      url?: string
+    }>
   }
   usage?: {
     image_count?: number
@@ -168,6 +171,7 @@ export default function Page() {
 
   const isLoading = state === 'uploading' || state === 'creating'
   const loadingText = state === 'uploading' ? '正在上传图片...' : state === 'creating' ? '正在生成试穿效果...' : ''
+  const resultImageUrl = result?.output?.image_url ?? result?.output?.results?.[0]?.url
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -444,8 +448,8 @@ export default function Page() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
-                  {result.output.image_url ? (
-                    <img src={result.output.image_url} alt="try-on result" className="w-full h-full object-contain" />
+                  {resultImageUrl ? (
+                    <img src={resultImageUrl} alt="try-on result" className="w-full h-full object-contain" />
                   ) : (
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
                       <Loader2 className="h-12 w-12 mb-2 animate-spin" />
@@ -458,9 +462,9 @@ export default function Page() {
                     <RotateCcw className="h-4 w-4 mr-2" />
                     重新生成
                   </Button>
-                  {result.output.image_url && (
+                  {resultImageUrl && (
                     <Button variant="default" className="flex-1" asChild>
-                      <a href={result.output.image_url} download>
+                      <a href={resultImageUrl} download>
                         <Download className="h-4 w-4 mr-2" />
                         下载图片
                       </a>
