@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 type UiState = 'idle' | 'uploading' | 'creating' | 'success' | 'error'
 type TryOnMode = 'top' | 'bottom' | 'full'
 type FullModeType = 'single' | 'split'
+type RefineMode = 'on' | 'off'
 
 interface TryOnApiResponse {
   output?: {
@@ -46,6 +47,7 @@ const MODE_OPTIONS: Array<{ id: TryOnMode; label: string }> = [
 export default function Page() {
   const [mode, setMode] = useState<TryOnMode>('full')
   const [fullModeType, setFullModeType] = useState<FullModeType>('single')
+  const [refineMode, setRefineMode] = useState<RefineMode>('on')
 
   const [personSampleUrl, setPersonSampleUrl] = useState('')
   const [topSampleUrl, setTopSampleUrl] = useState('')
@@ -147,7 +149,7 @@ export default function Page() {
         body: JSON.stringify({
           personImageUrl,
           ...garmentUrls,
-          refine: true,
+          refine: refineMode === 'on',
           gender: 'woman',
         }),
       })
@@ -195,6 +197,7 @@ export default function Page() {
     setFullSinglePreview('')
     setResult(null)
     setError(null)
+    setRefineMode('on')
     setState('idle')
   }
 
@@ -627,12 +630,28 @@ export default function Page() {
                   </div>
                   <div>
                     <CardTitle className="text-base">试穿结果</CardTitle>
-                    <p className="text-xs text-black/50">精修优先显示，支持下载与重试</p>
+                    <p className="text-xs text-black/50">支持切换精修开关，便于对比 coarse / refine</p>
                   </div>
                 </div>
                 <div className="hidden items-center gap-2 text-xs text-black/45 sm:flex">
                   <ImageIcon className="h-3.5 w-3.5" />
                   <span>{result?.output?.task_status ?? '未开始'}</span>
+                </div>
+                <div className="inline-flex items-center gap-1 rounded-full border border-black/10 bg-white px-1 py-1 text-xs text-black/60 shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => setRefineMode('on')}
+                    className={cn('rounded-full px-3 py-1.5 transition', refineMode === 'on' ? 'bg-black text-white' : 'hover:bg-black/5')}
+                  >
+                    精修 开
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRefineMode('off')}
+                    className={cn('rounded-full px-3 py-1.5 transition', refineMode === 'off' ? 'bg-black text-white' : 'hover:bg-black/5')}
+                  >
+                    精修 关
+                  </button>
                 </div>
               </div>
             </CardHeader>
