@@ -5,6 +5,18 @@ import { HttpClientError, HttpTimeoutError } from '@/lib/services/httpClient'
 import { createRefinerTask, createTryOnTask, waitForTask } from '@/lib/services/tryonService'
 import type { ApiErrorPayload } from '@/types/tryon'
 
+const debugTryOnLogs = process.env.DEBUG_TRYON_LOGS !== 'false'
+
+function summarizeUrl(url?: string) {
+  if (!url) return undefined
+  try {
+    const parsed = new URL(url)
+    return `${parsed.origin}${parsed.pathname}`
+  } catch {
+    return url.slice(0, 80)
+  }
+}
+
 const requestSchema = z.object({
   personImageUrl: z.string().url(),
   topGarmentUrl: z.string().url().optional(),
@@ -12,14 +24,6 @@ const requestSchema = z.object({
   refine: z.boolean().optional(),
   gender: z.enum(['man', 'woman']).optional(),
 })
-
-function buildInputPayload(personImageUrl: string, topGarmentUrl?: string, bottomGarmentUrl?: string) {
-  return {
-    person_image_url: personImageUrl,
-    ...(topGarmentUrl ? { top_garment_url: topGarmentUrl } : {}),
-    ...(bottomGarmentUrl ? { bottom_garment_url: bottomGarmentUrl } : {}),
-  }
-}
 
 function errorResponse(status: number, payload: ApiErrorPayload) {
   return NextResponse.json(payload, { status })
@@ -49,6 +53,29 @@ export async function POST(req: Request) {
       })
     }
 
+    if (debugTryOnLogs) {
+      logger.info({
+        event: 'tryon.route.input',
+        requestId,
+        hasTopGarment: Boolean(topGarmentUrl),
+        hasBottomGarment: Boolean(bottomGarmentUrl),
+        refine: Boolean(refine),
+        gender: gender ?? 'unset',
+        personImageUrl: summarizeUrl(parsed.data.personImageUrl),
+        topGarmentUrl: summarizeUrl(topGarmentUrl),
+        bottomGarmentUrl: summarizeUrl(bottomGarmentUrl),
+      })
+    }
+
+    if (debugTryOnLogs) {
+      logger.info({
+        event: 'tryon.route.coarse.start',
+        requestId,
+        hasTopGarment: Boolean(topGarmentUrl),
+        hasBottomGarment: Boolean(bottomGarmentUrl),
+      })
+    }
+
     const tryOn = await createTryOnTask({
       personImageUrl: parsed.data.personImageUrl,
       topGarmentUrl,
@@ -58,6 +85,17 @@ export async function POST(req: Request) {
     const coarseTaskId = tryOn.output?.task_id
     const coarseResult = coarseTaskId ? await waitForTask(coarseTaskId) : tryOn
     const coarseImageUrl = coarseResult.output?.image_url ?? coarseResult.output?.results?.[0]?.url
+
+    if (debugTryOnLogs) {
+      logger.info({
+        event: 'tryon.route.coarse.complete',
+        requestId,
+        taskId: coarseTaskId,
+        taskStatus: coarseResult.output?.task_status,
+        hasCoarseImage: Boolean(coarseImageUrl),
+        coarseImageUrl: summarizeUrl(coarseImageUrl),
+      })
+    }
 
     if (!refine) {
       return NextResponse.json({
@@ -75,6 +113,16 @@ export async function POST(req: Request) {
       })
     }
 
+    if (debugTryOnLogs) {
+      logger.info({
+        event: 'tryon.route.refine.start',
+        requestId,
+        hasTopGarment: Boolean(topGarmentUrl),
+        hasBottomGarment: Boolean(bottomGarmentUrl),
+        hasCoarseImage: Boolean(coarseImageUrl),
+      })
+    }
+
     const refinedTask = await createRefinerTask({
       personImageUrl: parsed.data.personImageUrl,
       topGarmentUrl,
@@ -86,6 +134,17 @@ export async function POST(req: Request) {
     const refinedTaskId = refinedTask.output?.task_id
     const refinedResult = refinedTaskId ? await waitForTask(refinedTaskId) : refinedTask
     const refinedImageUrl = refinedResult.output?.image_url ?? refinedResult.output?.results?.[0]?.url
+
+    if (debugTryOnLogs) {
+      logger.info({
+        event: 'tryon.route.refine.complete',
+        requestId,
+        taskId: refinedTaskId,
+        taskStatus: refinedResult.output?.task_status,
+        hasRefinedImage: Boolean(refinedImageUrl),
+        refinedImageUrl: summarizeUrl(refinedImageUrl),
+      })
+    }
 
     return NextResponse.json({
       requestId,
@@ -142,6 +201,7 @@ export async function POST(req: Request) {
       event: 'tryon.route.error',
       requestId,
       message: error instanceof Error ? error.message : 'unknown error',
+      errorName: error instanceof Error ? error.name : 'unknown',
     })
 
     return errorResponse(500, {
