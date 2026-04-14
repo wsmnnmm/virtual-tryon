@@ -32,9 +32,9 @@ interface UploadApiResponse {
   message?: string
 }
 
-const PERSON_SAMPLES = [{ id: 'p1', name: '全身正面', url: 'https://help-static-aliyun-doc.aliyuncs.com/file-manage-files/zh-CN/20250626/ubznva/model_person.png' }]
-const TOP_SAMPLES = [{ id: 't1', name: '上衣模板', url: 'https://help-static-aliyun-doc.aliyuncs.com/file-manage-files/zh-CN/20250626/epousa/short_sleeve.jpeg' }]
-const BOTTOM_SAMPLES = [{ id: 'b1', name: '下装模板', url: 'https://help-static-aliyun-doc.aliyuncs.com/file-manage-files/zh-CN/20250626/rchumi/pants.jpeg' }]
+const PERSON_SAMPLES = [{ id: 'p1', name: '全身正面', url: 'https://aliyunim.oss-cn-beijing.aliyuncs.com/uploads/person/1776152851294_5bbef7fa-4fd1-4e82-9ea0-cc5f28bf7131.jpg' }]
+const TOP_SAMPLES = [{ id: 't1', name: '上衣模板', url: 'https://aliyunim.oss-cn-beijing.aliyuncs.com/uploads/garment/1776161361812_54bdba4a-2e51-46cd-955d-a5c1ad93af63.png' }]
+const BOTTOM_SAMPLES = [{ id: 'b1', name: '下装模板', url: 'https://aliyunim.oss-cn-beijing.aliyuncs.com/uploads/garment/1776161361891_01fa91d4-02d5-4e73-9674-a23554418fc5.png' }]
 const FULL_SINGLE_SAMPLES = [{ id: 'f1', name: '连衣裙 / 套装', url: 'https://help-static-aliyun-doc.aliyuncs.com/file-manage-files/zh-CN/20250626/epousa/short_sleeve.jpeg' }]
 
 const MODE_OPTIONS: Array<{ id: TryOnMode; label: string }> = [
@@ -71,7 +71,7 @@ export default function Page() {
     if (mode === 'top') return Boolean(topFile || topSampleUrl)
     if (mode === 'bottom') return Boolean(bottomFile || bottomSampleUrl)
     if (fullModeType === 'single') return Boolean(fullSingleFile || fullSingleSampleUrl)
-    return Boolean(topFile || topSampleUrl || bottomFile || bottomSampleUrl)
+    return Boolean((topFile || topSampleUrl) && (bottomFile || bottomSampleUrl))
   }, [bottomFile, bottomSampleUrl, fullModeType, mode, topFile, topSampleUrl, fullSingleFile, fullSingleSampleUrl])
 
   const canSubmit = useMemo(
@@ -120,8 +120,8 @@ export default function Page() {
     const topGarmentUrl = topFile ? await uploadOne(topFile, 'garment') : topSampleUrl || undefined
     const bottomGarmentUrl = bottomFile ? await uploadOne(bottomFile, 'garment') : bottomSampleUrl || undefined
 
-    if (!topGarmentUrl && !bottomGarmentUrl) {
-      throw new Error('请先提供上装或下装图片')
+    if (!topGarmentUrl || !bottomGarmentUrl) {
+      throw new Error('请同时提供上装和下装图片')
     }
 
     return { topGarmentUrl, bottomGarmentUrl }

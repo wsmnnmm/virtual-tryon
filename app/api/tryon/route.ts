@@ -13,6 +13,14 @@ const requestSchema = z.object({
   gender: z.enum(['man', 'woman']).optional(),
 })
 
+function buildInputPayload(personImageUrl: string, topGarmentUrl?: string, bottomGarmentUrl?: string) {
+  return {
+    person_image_url: personImageUrl,
+    ...(topGarmentUrl ? { top_garment_url: topGarmentUrl } : {}),
+    ...(bottomGarmentUrl ? { bottom_garment_url: bottomGarmentUrl } : {}),
+  }
+}
+
 function errorResponse(status: number, payload: ApiErrorPayload) {
   return NextResponse.json(payload, { status })
 }

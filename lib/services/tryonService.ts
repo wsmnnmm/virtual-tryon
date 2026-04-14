@@ -98,8 +98,8 @@ export async function createTryOnTask(input: TryOnCreateRequest) {
     model: 'aitryon-plus',
     input: {
       person_image_url: input.personImageUrl,
-      top_garment_url: input.topGarmentUrl,
-      bottom_garment_url: input.bottomGarmentUrl,
+      ...(input.topGarmentUrl ? { top_garment_url: input.topGarmentUrl } : {}),
+      ...(input.bottomGarmentUrl ? { bottom_garment_url: input.bottomGarmentUrl } : {}),
     },
     parameters: {
       resolution: -1,
