@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { logger } from '@/lib/logger'
 import { upsertJob } from '@/lib/tryon/jobStore'
 import { logTryOn } from '@/lib/tryon/log'
-import { runTryOnJob } from '@/lib/tryon/runner'
+import { advanceTryOnJob } from '@/lib/tryon/runner'
 import type { TryOnCreateResponse, TryOnJobRecord } from '@/lib/tryon/protocol'
 
 export const runtime = 'nodejs'
@@ -55,14 +55,10 @@ export async function POST(req: Request) {
       refine: parsed.data.refine !== false,
     })
 
-    void runTryOnJob(job, requestId).catch(error => {
-      logger.error({
-        event: 'tryon.job.background_error',
-        jobId,
-        requestId,
-        message: error instanceof Error ? error.message : 'unknown error',
-      })
-    })
+    const updated = await advanceTryOnJob(jobId, requestId)
+    if (updated?.status === 'succeeded' || updated?.status === 'failed') {
+      logTryOn('tryon.job.create.inline_result', { jobId, requestId, status: updated.status })
+    }
 
     const payload: TryOnCreateResponse = { jobId, status: 'pending', requestId }
     return NextResponse.json(payload, { status: 202 })

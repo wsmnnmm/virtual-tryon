@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getJob } from '@/lib/tryon/jobStore'
 import { ensureHttpsUrl } from '@/lib/tryon/log'
+import { advanceTryOnJob } from '@/lib/tryon/runner'
 import type { TryOnStatusResponse } from '@/lib/tryon/protocol'
 
 export const runtime = 'nodejs'
@@ -15,6 +16,8 @@ export async function GET(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: 'INVALID_INPUT', message: 'jobId is required' }, { status: 400 })
   }
+
+  await advanceTryOnJob(parsed.data.jobId)
 
   const job = await getJob(parsed.data.jobId)
   if (!job) {
