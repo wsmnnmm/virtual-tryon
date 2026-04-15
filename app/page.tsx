@@ -105,10 +105,28 @@ export default function Page() {
     formData.append('scene', scene);
 
     const response = await fetch('/api/upload', { method: 'POST', body: formData });
-    const payload = (await response.json()) as UploadApiResponse;
-    if (!response.ok || !payload.success || !payload.publicUrl) {
-      throw new Error(payload.message ?? payload.error ?? '上传失败');
+    const rawText = await response.text();
+    let payload: UploadApiResponse | null = null;
+
+    try {
+      payload = rawText ? (JSON.parse(rawText) as UploadApiResponse) : null;
+    } catch {
+      payload = null;
     }
+
+    if (!response.ok) {
+      // Some platforms/proxies return plain text/HTML (e.g. 413 Request Entity Too Large),
+      // which would otherwise crash on response.json().
+      if (response.status === 413 || rawText.toLowerCase().includes('request entity') || rawText.toLowerCase().includes('entity too large')) {
+        throw new Error('图片过大导致上传被拦截（Request Entity Too Large），请换小一点的图片或先压缩后再试');
+      }
+      throw new Error(payload?.message ?? payload?.error ?? (rawText ? rawText.slice(0, 160) : '上传失败'));
+    }
+
+    if (!payload?.success || !payload.publicUrl) {
+      throw new Error(payload?.message ?? payload?.error ?? '上传失败');
+    }
+
     return payload.publicUrl;
   };
 

@@ -1,4 +1,5 @@
 import crypto from 'node:crypto'
+import { Readable } from 'node:stream'
 import { logger } from '@/lib/logger'
 import { HttpClientError, HttpTimeoutError } from '@/lib/services/httpClient'
 import type { StorageUploadResult } from '@/types/storage'
@@ -17,7 +18,9 @@ const ossBucket = process.env.OSS_BUCKET
 const ossRegion = process.env.OSS_REGION
 const ossPublicBaseUrl = process.env.OSS_PUBLIC_BASE_URL
 
-const uploadTimeoutMs = Number(process.env.OSS_UPLOAD_TIMEOUT_MS ?? process.env.COS_UPLOAD_TIMEOUT_MS ?? '30000')
+// Mobile (especially WeChat WebView) uploads can be much slower on cellular networks.
+// Default to a more forgiving timeout unless explicitly configured.
+const uploadTimeoutMs = Number(process.env.OSS_UPLOAD_TIMEOUT_MS ?? process.env.COS_UPLOAD_TIMEOUT_MS ?? '120000')
 const maxFileSizeBytes = Number(process.env.OSS_MAX_FILE_SIZE_BYTES ?? process.env.COS_MAX_FILE_SIZE_BYTES ?? String(10 * 1024 * 1024))
 const allowedMimeTypes = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
@@ -118,16 +121,18 @@ async function uploadToOss(file: File, scene?: string): Promise<StorageUploadRes
   })
 
   try {
-    const bytes = Buffer.from(await file.arrayBuffer())
-
     const response = await fetch(uploadUrl, {
       method: 'PUT',
       headers: {
         Authorization: authorization,
         'Content-Type': file.type,
+        'Content-Length': String(file.size),
         Date: date,
       },
-      body: bytes,
+      // Stream the file to avoid buffering entire payload in memory
+      body: Readable.fromWeb(file.stream() as unknown as ReadableStream),
+      // Node fetch requires duplex for streaming request bodies
+      duplex: 'half',
       signal: controller.signal,
     })
 
@@ -209,15 +214,15 @@ async function uploadToCos(file: File, scene?: string): Promise<StorageUploadRes
   })
 
   try {
-    const bytes = Buffer.from(await file.arrayBuffer())
-
     const response = await fetch(uploadUrl, {
       method: 'PUT',
       headers: {
         Authorization: authorization,
         'Content-Type': file.type,
+        'Content-Length': String(file.size),
       },
-      body: bytes,
+      body: Readable.fromWeb(file.stream() as unknown as ReadableStream),
+      duplex: 'half',
       signal: controller.signal,
     })
 

@@ -4,6 +4,13 @@ import { HttpClientError, HttpTimeoutError } from '@/lib/services/httpClient'
 import { uploadToCozeStorage } from '@/lib/services/storageService'
 import type { ApiErrorPayload } from '@/types/tryon'
 
+// Vercel/Next.js route handler hints:
+// - Ensure the function has enough time budget for slow mobile networks.
+// - Prefer running closer to OSS (oss-cn-beijing) to reduce latency.
+export const runtime = 'nodejs'
+export const maxDuration = 180
+export const preferredRegion = ['hnd1', 'sin1', 'iad1']
+
 function errorResponse(status: number, payload: ApiErrorPayload) {
   return NextResponse.json(payload, { status })
 }
@@ -12,6 +19,7 @@ export async function POST(req: Request) {
   const requestId = crypto.randomUUID()
 
   try {
+    const start = Date.now()
     const formData = await req.formData()
     const file = formData.get('file')
     const scene = formData.get('scene')
@@ -24,7 +32,24 @@ export async function POST(req: Request) {
       })
     }
 
+    logger.info({
+      event: 'upload.route.start',
+      requestId,
+      scene: typeof scene === 'string' ? scene : 'unknown',
+      fileType: file.type,
+      fileSize: file.size,
+      userAgent: req.headers.get('user-agent') ?? undefined,
+    })
+
     const result = await uploadToCozeStorage(file, typeof scene === 'string' ? scene : undefined)
+
+    logger.info({
+      event: 'upload.route.success',
+      requestId,
+      elapsedMs: Date.now() - start,
+      providerRequestId: result.requestId,
+      assetId: result.assetId,
+    })
 
     return NextResponse.json({
       requestId,
@@ -40,6 +65,11 @@ export async function POST(req: Request) {
     })
   } catch (error) {
     if (error instanceof HttpTimeoutError) {
+      logger.error({
+        event: 'upload.route.timeout',
+        requestId,
+        message: error.message,
+      })
       return errorResponse(504, {
         error: 'STORAGE_TIMEOUT',
         message: 'Storage upload timed out, please retry',
