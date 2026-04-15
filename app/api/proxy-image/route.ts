@@ -29,33 +29,37 @@ export async function GET(req: Request) {
     const isHttps = urlObj.protocol === 'https:'
     const client = isHttps ? https : http
 
-    return await new Promise((resolve) => {
+    return await new Promise<Response>((resolve) => {
       const timeout = setTimeout(() => {
         logger.error({
           event: 'proxy.image.timeout',
           requestId,
           imageUrl,
         })
-        resolve(NextResponse.json(
-          { error: 'TIMEOUT', message: 'Image fetch timed out', requestId },
-          { status: 504 },
-        ))
+        resolve(
+          NextResponse.json(
+            { error: 'TIMEOUT', message: 'Image fetch timed out', requestId },
+            { status: 504 },
+          ),
+        )
       }, PROXY_TIMEOUT_MS)
 
       const proxyReq = client.get(imageUrl, { headers: { Accept: 'image/*' } }, (proxyRes) => {
         clearTimeout(timeout)
 
-        if (!proxyRes.ok) {
+        if ((proxyRes.statusCode ?? 0) < 200 || (proxyRes.statusCode ?? 0) >= 300) {
           logger.error({
             event: 'proxy.image.upstream_error',
             requestId,
             status: proxyRes.statusCode,
             imageUrl,
           })
-          resolve(NextResponse.json(
-            { error: 'UPSTREAM_ERROR', status: proxyRes.statusCode, message: 'Failed to fetch image', requestId },
-            { status: 502 },
-          ))
+          resolve(
+            NextResponse.json(
+              { error: 'UPSTREAM_ERROR', status: proxyRes.statusCode, message: 'Failed to fetch image', requestId },
+              { status: 502 },
+            ),
+          )
           return
         }
 
@@ -72,15 +76,17 @@ export async function GET(req: Request) {
             contentType,
           })
 
-          resolve(new NextResponse(buffer, {
-            status: 200,
-            headers: {
-              'Content-Type': contentType,
-              'Content-Length': String(buffer.length),
-              'Cache-Control': 'public, max-age=3600',
-              'Access-Control-Allow-Origin': '*',
-            },
-          }))
+          resolve(
+            new NextResponse(buffer, {
+              status: 200,
+              headers: {
+                'Content-Type': contentType,
+                'Content-Length': String(buffer.length),
+                'Cache-Control': 'public, max-age=3600',
+                'Access-Control-Allow-Origin': '*',
+              },
+            }),
+          )
         })
         proxyRes.on('error', (err) => {
           logger.error({
@@ -89,10 +95,12 @@ export async function GET(req: Request) {
             message: err.message,
             imageUrl,
           })
-          resolve(NextResponse.json(
-            { error: 'STREAM_ERROR', message: err.message, requestId },
-            { status: 502 },
-          ))
+          resolve(
+            NextResponse.json(
+              { error: 'STREAM_ERROR', message: err.message, requestId },
+              { status: 502 },
+            ),
+          )
         })
       })
 
@@ -104,10 +112,12 @@ export async function GET(req: Request) {
           message: err.message,
           imageUrl,
         })
-        resolve(NextResponse.json(
-          { error: 'REQUEST_ERROR', message: err.message, requestId },
-          { status: 502 },
-        ))
+        resolve(
+          NextResponse.json(
+            { error: 'REQUEST_ERROR', message: err.message, requestId },
+            { status: 502 },
+          ),
+        )
       })
     })
   } catch (error) {
