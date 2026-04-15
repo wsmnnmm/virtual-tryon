@@ -5,7 +5,7 @@ import http from 'http'
 
 const PROXY_TIMEOUT_MS = 30000
 
-export async function GET(req: Request) {
+export async function GET(req: Request): Promise<Response> {
   const requestId = crypto.randomUUID()
 
   try {
