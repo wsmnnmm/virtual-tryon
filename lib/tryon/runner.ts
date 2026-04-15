@@ -13,11 +13,11 @@ export async function runTryOnJob(job: TryOnJobRecord) {
 
   try {
     logTryOn('tryon.job.started', { jobId, requestId, refine: request.refine !== false })
-    patchJob(jobId, { status: 'coarse_running' })
+    await patchJob(jobId, { status: 'coarse_running' })
 
     const coarseTask = await createTryOnTask(request)
     const coarseTaskId = coarseTask.output?.task_id
-    if (coarseTaskId) patchJob(jobId, { coarseTaskId })
+    if (coarseTaskId) await patchJob(jobId, { coarseTaskId })
 
     if (!coarseTaskId) throw new Error('DashScope coarse task id missing')
 
@@ -30,7 +30,7 @@ export async function runTryOnJob(job: TryOnJobRecord) {
 
       if (status === 'SUCCEEDED') {
         const safeImage = ensureHttpsUrl(imageUrl)
-        patchJob(jobId, { status: 'coarse_succeeded', coarseImageUrl: safeImage })
+        await patchJob(jobId, { status: 'coarse_succeeded', coarseImageUrl: safeImage })
         break
       }
 
@@ -42,18 +42,18 @@ export async function runTryOnJob(job: TryOnJobRecord) {
     }
 
     if (request.refine === false) {
-      const current = patchJob(jobId, { status: 'succeeded' })
+      const current = await patchJob(jobId, { status: 'succeeded' })
       logTryOn('tryon.job.complete', { jobId, requestId, status: current?.status, coarseImageUrl: summarizeUrl(current?.coarseImageUrl) })
       return current
     }
 
-    const coarseImageUrl = patchJob(jobId, {})?.coarseImageUrl
+    const coarseImageUrl = (await patchJob(jobId, {}))?.coarseImageUrl
     if (!coarseImageUrl) throw new Error('coarse image missing before refine')
 
-    patchJob(jobId, { status: 'refine_running' })
+    await patchJob(jobId, { status: 'refine_running' })
     const refineTask = await createRefinerTask({ ...request, coarseImageUrl })
     const refineTaskId = refineTask.output?.task_id
-    if (refineTaskId) patchJob(jobId, { refineTaskId })
+    if (refineTaskId) await patchJob(jobId, { refineTaskId })
     if (!refineTaskId) throw new Error('DashScope refine task id missing')
 
     while (true) {
@@ -64,7 +64,7 @@ export async function runTryOnJob(job: TryOnJobRecord) {
 
       if (status === 'SUCCEEDED') {
         const safeImage = ensureHttpsUrl(imageUrl)
-        const current = patchJob(jobId, { status: 'succeeded', refinedImageUrl: safeImage })
+        const current = await patchJob(jobId, { status: 'succeeded', refinedImageUrl: safeImage })
         logTryOn('tryon.job.complete', { jobId, requestId, status: current?.status, refinedImageUrl: summarizeUrl(current?.refinedImageUrl) })
         return current
       }
@@ -77,7 +77,7 @@ export async function runTryOnJob(job: TryOnJobRecord) {
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'unknown error'
-    patchJob(jobId, { status: 'failed', error: 'JOB_FAILED', errorMessage: message })
+    await patchJob(jobId, { status: 'failed', error: 'JOB_FAILED', errorMessage: message })
     logTryOn('tryon.job.failed', { jobId, requestId, message })
     if (error instanceof HttpClientError) throw error
     throw error

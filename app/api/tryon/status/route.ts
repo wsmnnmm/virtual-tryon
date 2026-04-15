@@ -16,7 +16,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'INVALID_INPUT', message: 'jobId is required' }, { status: 400 })
   }
 
-  const job = getJob(parsed.data.jobId)
+  const job = await getJob(parsed.data.jobId)
   if (!job) {
     return NextResponse.json({ error: 'NOT_FOUND', message: 'Job not found', jobId: parsed.data.jobId }, { status: 404 })
   }
