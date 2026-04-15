@@ -1,4 +1,5 @@
 import crypto from 'node:crypto'
+import { Readable } from 'node:stream'
 import { logger } from '@/lib/logger'
 import { HttpClientError, HttpTimeoutError } from '@/lib/services/httpClient'
 import type { StorageUploadResult } from '@/types/storage'
@@ -202,8 +203,10 @@ async function uploadToOss(file: File, scene?: string): Promise<StorageUploadRes
         'Content-Length': String(file.size),
         Date: date,
       },
-      // File is a Blob in the browser/runtime and can be sent directly.
-      body: file as unknown as BodyInit,
+      // Stream the file to avoid buffering entire payload in memory
+      body: Readable.fromWeb(file.stream() as unknown as ReadableStream),
+      // Node fetch requires duplex for streaming request bodies
+      duplex: 'half',
       signal: controller.signal,
     })
 
