@@ -1,4 +1,5 @@
 import crypto from 'node:crypto'
+import { Readable } from 'node:stream'
 import { logger } from '@/lib/logger'
 import { HttpClientError, HttpTimeoutError } from '@/lib/services/httpClient'
 import type { StorageUploadResult } from '@/types/storage'
