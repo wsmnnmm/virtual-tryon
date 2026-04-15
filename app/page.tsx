@@ -744,14 +744,14 @@ export default function Page() {
                     {result?.status ?? 'idle'}
                   </div>
                 </div>
-                <div className="mt-3 rounded-full border border-black/10 bg-white px-3 py-2 sm:px-4 sm:py-2.5">
-                  <div className="grid grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr] items-center gap-x-3 sm:gap-x-4">
+                <div className="mt-3 rounded-full border border-black/10 bg-white px-2 py-1.5 sm:px-4 sm:py-2.5">
+                  <div className="grid grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr] items-center gap-x-2 sm:gap-x-3">
                     {stepStates.map((step, index) => (
                       <>
-                        <div key={step.key} className="flex items-center justify-center gap-2">
+                        <div key={step.key} className="flex min-w-0 items-center justify-center gap-1 sm:gap-2.5">
                           <div
                             className={cn(
-                              'flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[10px] font-medium transition sm:h-7 sm:w-7 sm:text-[11px]',
+                              'flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-[6px] font-medium transition sm:h-7 sm:w-7 sm:text-[11px]',
                               step.done
                                 ? 'border-emerald-300 bg-emerald-100 text-emerald-700'
                                 : step.active
@@ -761,20 +761,16 @@ export default function Page() {
                           >
                             {index + 1}
                           </div>
-                          <div className="min-w-0 text-left leading-tight">
-                            <div className={cn('truncate text-[11px] font-medium sm:text-xs', step.done ? 'text-emerald-700' : step.active ? 'text-black' : 'text-black/45')}>
+                          <div className="min-w-0 text-left leading-none">
+                            <div className={cn('truncate text-[6px] font-medium sm:text-xs', step.done ? 'text-emerald-700' : step.active ? 'text-black' : 'text-black/45')}>
                               {step.label}
                             </div>
-                            <div className={cn('truncate text-[10px] sm:text-[11px]', step.done ? 'text-emerald-600/80' : step.active ? 'text-black/65' : 'text-black/35')}>
+                            <div className={cn('hidden truncate text-[9px] sm:block sm:text-[11px]', step.done ? 'text-emerald-600/80' : step.active ? 'text-black/65' : 'text-black/35')}>
                               {step.done ? '完成' : step.active ? '进行中' : '等待中'}
                             </div>
                           </div>
                         </div>
-                        {index < stepStates.length - 1 && (
-                          <div key={`${step.key}-line`} className="flex items-center justify-center">
-                            <div className="h-px w-full min-w-4 bg-black/10 sm:min-w-6" />
-                          </div>
-                        )}
+                        {index < stepStates.length - 1 && <div key={`${step.key}-line`} className="mx-auto h-px w-2.5 bg-black/10 sm:w-8" />}
                       </>
                     ))}
                   </div>
