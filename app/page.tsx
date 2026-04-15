@@ -9,21 +9,27 @@ import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 
-type UiState = 'idle' | 'uploading' | 'creating' | 'success' | 'error';
+type UiState = 'idle' | 'uploading' | 'creating' | 'polling' | 'success' | 'error';
 type TryOnMode = 'top' | 'bottom' | 'full';
 type FullModeType = 'single' | 'split';
 type RefineMode = 'on' | 'off';
 
-interface TryOnApiResponse {
-  output?: {
-    task_id?: string;
-    task_status?: string;
-    image_url?: string;
-    coarse_image_url?: string;
-    results?: Array<{ url?: string }>;
-  };
-  usage?: { image_count?: number };
-  requestId?: string;
+type TryOnJobStatus = 'pending' | 'coarse_running' | 'coarse_succeeded' | 'refine_running' | 'succeeded' | 'failed';
+
+interface TryOnCreateResponse {
+  jobId: string;
+  status: TryOnJobStatus;
+  requestId: string;
+}
+
+interface TryOnStatusResponse {
+  jobId: string;
+  status: TryOnJobStatus;
+  requestId: string;
+  coarseImageUrl?: string;
+  refinedImageUrl?: string;
+  error?: string;
+  errorMessage?: string;
 }
 
 interface UploadApiResponse {
@@ -80,7 +86,8 @@ export default function Page() {
 
   const [state, setState] = useState<UiState>('idle');
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<TryOnApiResponse | null>(null);
+  const [jobId, setJobId] = useState('');
+  const [result, setResult] = useState<TryOnStatusResponse | null>(null);
 
   const personReady = Boolean(personFile || personSampleUrl);
   const garmentReady = useMemo(() => {
@@ -140,6 +147,30 @@ export default function Page() {
     return { topGarmentUrl, bottomGarmentUrl };
   };
 
+  const pollStatus = async (nextJobId: string) => {
+    const maxPolls = 180
+    for (let i = 0; i < maxPolls; i++) {
+      const response = await fetch(`/api/tryon/status?jobId=${encodeURIComponent(nextJobId)}`, { cache: 'no-store' })
+      const payload = (await response.json()) as TryOnStatusResponse & { error?: string; message?: string }
+
+      if (!response.ok) throw new Error(payload.message ?? payload.error ?? '查询任务状态失败')
+
+      setResult(payload)
+
+      if (payload.status === 'succeeded') {
+        setState('success')
+        return
+      }
+      if (payload.status === 'failed') {
+        throw new Error(payload.errorMessage ?? '任务失败')
+      }
+
+      setState('polling')
+      await new Promise(resolve => setTimeout(resolve, 2000))
+    }
+    throw new Error('任务等待超时，请稍后刷新页面继续查看')
+  }
+
   const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!canSubmit) return;
@@ -147,6 +178,7 @@ export default function Page() {
     setState('uploading');
     setError(null);
     setResult(null);
+    setJobId('');
 
     try {
       const personImageUrl = await resolvePersonImageUrl();
@@ -154,7 +186,7 @@ export default function Page() {
 
       setState('creating');
 
-      const response = await fetch('/api/tryon', {
+      const response = await fetch('/api/tryon/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -165,21 +197,14 @@ export default function Page() {
         })
       });
 
-      const payload = (await response.json()) as TryOnApiResponse & {
-        error?: string;
-        message?: string;
-        retryAfter?: string;
-      };
+      const payload = (await response.json()) as TryOnCreateResponse & { error?: string; message?: string; retryAfter?: string };
 
       if (!response.ok) {
-        if (response.status === 401) throw new Error('401：API Key 无效或已过期，请检查服务端配置');
-        if (response.status === 429) throw new Error(`429：请求频率受限，请稍后重试${payload.retryAfter ? `（retry-after: ${payload.retryAfter}）` : ''}`);
-        if (response.status === 504) throw new Error('timeout：上游服务超时，请稍后重试');
-        throw new Error(payload.message ?? payload.error ?? '请求失败，请稍后重试');
+        throw new Error(payload.message ?? payload.error ?? '创建任务失败')
       }
 
-      setResult(payload);
-      setState('success');
+      setJobId(payload.jobId)
+      await pollStatus(payload.jobId)
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : '未知错误');
       setState('error');
@@ -236,9 +261,39 @@ export default function Page() {
     setFullSingleSampleUrl('');
   };
 
-  const isLoading = state === 'uploading' || state === 'creating';
-  const loadingText = state === 'uploading' ? '正在上传图片...' : state === 'creating' ? '正在生成试穿效果...' : '';
-  const resultImageUrl = result?.output?.image_url ?? result?.output?.results?.[0]?.url;
+  const isLoading = state === 'uploading' || state === 'creating' || state === 'polling';
+  const loadingText = state === 'uploading' ? '正在上传图片...' : state === 'creating' ? '正在创建任务...' : state === 'polling' ? '正在轮询试穿进度...' : '';
+  const resultImageUrl = result?.refinedImageUrl ?? result?.coarseImageUrl;
+  const currentStepLabel =
+    state === 'uploading'
+      ? '1. 上传素材'
+      : state === 'creating'
+        ? '2. 创建试穿任务'
+        : state === 'polling'
+          ? '3. 试穿生成中'
+          : state === 'success'
+            ? '4. 生成完成'
+            : state === 'error'
+              ? '生成失败'
+              : '等待开始';
+  const currentStepHint =
+    state === 'uploading'
+      ? '正在把人物图和服装图上传到服务端'
+      : state === 'creating'
+        ? '正在创建 job，稍后会自动轮询 coarse / refine 进度'
+        : state === 'polling'
+          ? result?.status === 'coarse_running'
+            ? 'coarse 阶段生成中，通常需要较长时间'
+            : result?.status === 'coarse_succeeded'
+              ? 'coarse 已完成，正在进入 refine 精修'
+              : result?.status === 'refine_running'
+                ? 'refine 精修中，请稍候'
+                : '处理中，请稍候'
+          : state === 'success'
+            ? '已生成完成，可以下载或继续重试'
+            : state === 'error'
+              ? error ?? '发生错误'
+              : '提交后将显示实时进度';
 
   const sampleStrip = (items: Array<{ id: string; name: string; url: string }>, activeUrl: string, onPick: (url: string) => void) => (
     <div className="rounded-xl border border-black/10 bg-[#fafaf9] p-3">
@@ -653,6 +708,18 @@ export default function Page() {
 
           <Card className="flex h-full flex-col overflow-hidden rounded-2xl border-black/10 bg-white shadow-[0_16px_46px_rgba(0,0,0,0.10)]">
             <CardHeader className="pb-3">
+              <div className="mb-3 rounded-xl border border-black/10 bg-[#fafaf9] px-4 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-[0.18em] text-black/45">Generation Status</p>
+                    <p className="mt-1 text-sm font-semibold text-black/80">{currentStepLabel}</p>
+                    <p className="mt-1 text-xs leading-5 text-black/50">{currentStepHint}</p>
+                  </div>
+                  <div className="rounded-full bg-black px-3 py-1 text-[11px] font-medium text-white">
+                    {result?.status ?? 'idle'}
+                  </div>
+                </div>
+              </div>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
                   <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#111827] text-white">
@@ -665,7 +732,7 @@ export default function Page() {
                 </div>
                 <div className="hidden items-center gap-2 text-xs text-black/45 sm:flex">
                   <ImageIcon className="h-3.5 w-3.5" />
-                  <span>{result?.output?.task_status ?? '未开始'}</span>
+                  <span>{result?.status ?? '未开始'}</span>
                 </div>
                 <div className="inline-flex w-full items-center gap-1 rounded-full border border-black/10 bg-white p-1 text-xs text-black/60 shadow-sm sm:w-auto">
                   <button
@@ -699,6 +766,9 @@ export default function Page() {
                   <div className="flex h-full min-h-[420px] w-full flex-col items-center justify-center text-black/40">
                     {isLoading ? <Loader2 className="mb-2 h-10 w-10 animate-spin" /> : <ImageIcon className="mb-2 h-10 w-10" />}
                     <p className="text-sm">{isLoading ? loadingText : '等待生成试穿结果'}</p>
+                    <p className="mt-2 max-w-sm text-center text-xs leading-5 text-black/35">
+                      提交后会先创建 job，再自动轮询 coarse / refine 进度。长耗时不再阻塞浏览器连接。
+                    </p>
                   </div>
                 )}
               </div>
@@ -707,9 +777,9 @@ export default function Page() {
                 <div className="rounded-xl border border-black/10 bg-[#fafaf9] px-4 py-3">
                   <div className="mb-2 flex items-center justify-between text-xs text-black/55">
                     <span>{loadingText}</span>
-                    <span>处理中</span>
+                    <span>{jobId ? `jobId: ${jobId.slice(0, 8)}` : '处理中'}</span>
                   </div>
-                  <Progress value={state === 'uploading' ? 35 : 72} className="h-2" />
+                  <Progress value={state === 'uploading' ? 20 : state === 'creating' ? 40 : 80} className="h-2" />
                 </div>
               )}
 
