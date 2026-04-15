@@ -1,147 +1,158 @@
-'use client'
+'use client';
 
 /* eslint-disable @next/next/no-img-element */
-import { FormEvent, useMemo, useState } from 'react'
-import { Download, ImageIcon, Loader2, RotateCcw, Shirt, Sparkles, Upload, User, X } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Label } from '@/components/ui/label'
-import { Progress } from '@/components/ui/progress'
-import { cn } from '@/lib/utils'
+import { FormEvent, useMemo, useState } from 'react';
+import { Download, ImageIcon, Loader2, RotateCcw, Shirt, Sparkles, Upload, User, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
+import { cn } from '@/lib/utils';
 
-type UiState = 'idle' | 'uploading' | 'creating' | 'success' | 'error'
-type TryOnMode = 'top' | 'bottom' | 'full'
-type FullModeType = 'single' | 'split'
-type RefineMode = 'on' | 'off'
+type UiState = 'idle' | 'uploading' | 'creating' | 'success' | 'error';
+type TryOnMode = 'top' | 'bottom' | 'full';
+type FullModeType = 'single' | 'split';
+type RefineMode = 'on' | 'off';
 
 interface TryOnApiResponse {
   output?: {
-    task_id?: string
-    task_status?: string
-    image_url?: string
-    coarse_image_url?: string
-    results?: Array<{ url?: string }>
-  }
-  usage?: { image_count?: number }
-  requestId?: string
+    task_id?: string;
+    task_status?: string;
+    image_url?: string;
+    coarse_image_url?: string;
+    results?: Array<{ url?: string }>;
+  };
+  usage?: { image_count?: number };
+  requestId?: string;
 }
 
 interface UploadApiResponse {
-  success: boolean
-  publicUrl?: string
-  error?: string
-  message?: string
+  success: boolean;
+  publicUrl?: string;
+  error?: string;
+  message?: string;
 }
 
-const PERSON_SAMPLES = [{ id: 'p1', name: '全身正面', url: 'https://aliyunim.oss-cn-beijing.aliyuncs.com/uploads/person/1776152851294_5bbef7fa-4fd1-4e82-9ea0-cc5f28bf7131.jpg' }]
-const TOP_SAMPLES = [{ id: 't1', name: '上衣模板', url: 'https://aliyunim.oss-cn-beijing.aliyuncs.com/uploads/garment/1776161361812_54bdba4a-2e51-46cd-955d-a5c1ad93af63.png' }]
-const BOTTOM_SAMPLES = [{ id: 'b1', name: '下装模板', url: 'https://aliyunim.oss-cn-beijing.aliyuncs.com/uploads/garment/1776161361891_01fa91d4-02d5-4e73-9674-a23554418fc5.png' }]
-const FULL_SINGLE_SAMPLES = [{ id: 'f1', name: '连衣裙 / 套装', url: 'https://help-static-aliyun-doc.aliyuncs.com/file-manage-files/zh-CN/20250626/epousa/short_sleeve.jpeg' }]
+const PERSON_SAMPLES = [
+  { id: 'p3', name: '全身正面', url: 'https://aliyunim.oss-cn-beijing.aliyuncs.com/uploads/person/1776161361260_d0f9e3c0-dfec-42bf-b713-35a5f068891b.jpg' },
+  { id: 'p1', name: '全身正面', url: 'https://aliyunim.oss-cn-beijing.aliyuncs.com/my/Snipaste_2026-04-15_15-42-11.png' },
+  { id: 'p2', name: '全身正面', url: 'https://aliyunim.oss-cn-beijing.aliyuncs.com/my/renxiangnan.png' }
+
+];
+const TOP_SAMPLES = [
+  { id: 't3', name: '上衣模板', url: 'https://aliyunim.oss-cn-beijing.aliyuncs.com/my/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20260414180114_481_2.jpg' },
+  { id: 't1', name: '上衣模板', url: 'https://aliyunim.oss-cn-beijing.aliyuncs.com/uploads/garment/1776161361812_54bdba4a-2e51-46cd-955d-a5c1ad93af63.png' },
+  { id: 't2', name: '上衣模板', url: 'https://aliyunim.oss-cn-beijing.aliyuncs.com/my/%E4%B8%8A%E8%A1%A3.png' }
+
+];
+const BOTTOM_SAMPLES = [
+  { id: 'b1', name: '下装模板', url: 'https://aliyunim.oss-cn-beijing.aliyuncs.com/my/%E8%A3%A4%E5%AD%903.png' }
+];
+const FULL_SINGLE_SAMPLES = [
+  { id: 'f1', name: '连衣裙 / 套装', url: 'https://aliyunim.oss-cn-beijing.aliyuncs.com/my/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20260415151353_499_2.jpg' }
+];
 
 const MODE_OPTIONS: Array<{ id: TryOnMode; label: string }> = [
   { id: 'top', label: '上装' },
   { id: 'bottom', label: '下装' },
-  { id: 'full', label: '整身' },
-]
+  { id: 'full', label: '整身' }
+];
 
 export default function Page() {
-  const [mode, setMode] = useState<TryOnMode>('full')
-  const [fullModeType, setFullModeType] = useState<FullModeType>('single')
-  const [refineMode, setRefineMode] = useState<RefineMode>('on')
+  const [mode, setMode] = useState<TryOnMode>('full');
+  const [fullModeType, setFullModeType] = useState<FullModeType>('single');
+  const [refineMode, setRefineMode] = useState<RefineMode>('on');
 
-  const [personSampleUrl, setPersonSampleUrl] = useState('')
-  const [topSampleUrl, setTopSampleUrl] = useState('')
-  const [bottomSampleUrl, setBottomSampleUrl] = useState('')
-  const [fullSingleSampleUrl, setFullSingleSampleUrl] = useState('')
+  const [personSampleUrl, setPersonSampleUrl] = useState('');
+  const [topSampleUrl, setTopSampleUrl] = useState('');
+  const [bottomSampleUrl, setBottomSampleUrl] = useState('');
+  const [fullSingleSampleUrl, setFullSingleSampleUrl] = useState('');
 
-  const [personFile, setPersonFile] = useState<File | null>(null)
-  const [topFile, setTopFile] = useState<File | null>(null)
-  const [bottomFile, setBottomFile] = useState<File | null>(null)
-  const [fullSingleFile, setFullSingleFile] = useState<File | null>(null)
+  const [personFile, setPersonFile] = useState<File | null>(null);
+  const [topFile, setTopFile] = useState<File | null>(null);
+  const [bottomFile, setBottomFile] = useState<File | null>(null);
+  const [fullSingleFile, setFullSingleFile] = useState<File | null>(null);
 
-  const [personPreview, setPersonPreview] = useState('')
-  const [topPreview, setTopPreview] = useState('')
-  const [bottomPreview, setBottomPreview] = useState('')
-  const [fullSinglePreview, setFullSinglePreview] = useState('')
+  const [personPreview, setPersonPreview] = useState('');
+  const [topPreview, setTopPreview] = useState('');
+  const [bottomPreview, setBottomPreview] = useState('');
+  const [fullSinglePreview, setFullSinglePreview] = useState('');
 
-  const [state, setState] = useState<UiState>('idle')
-  const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<TryOnApiResponse | null>(null)
+  const [state, setState] = useState<UiState>('idle');
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<TryOnApiResponse | null>(null);
 
-  const personReady = Boolean(personFile || personSampleUrl)
+  const personReady = Boolean(personFile || personSampleUrl);
   const garmentReady = useMemo(() => {
-    if (mode === 'top') return Boolean(topFile || topSampleUrl)
-    if (mode === 'bottom') return Boolean(bottomFile || bottomSampleUrl)
-    if (fullModeType === 'single') return Boolean(fullSingleFile || fullSingleSampleUrl)
-    return Boolean((topFile || topSampleUrl) && (bottomFile || bottomSampleUrl))
-  }, [bottomFile, bottomSampleUrl, fullModeType, mode, topFile, topSampleUrl, fullSingleFile, fullSingleSampleUrl])
+    if (mode === 'top') return Boolean(topFile || topSampleUrl);
+    if (mode === 'bottom') return Boolean(bottomFile || bottomSampleUrl);
+    if (fullModeType === 'single') return Boolean(fullSingleFile || fullSingleSampleUrl);
+    return Boolean((topFile || topSampleUrl) && (bottomFile || bottomSampleUrl));
+  }, [bottomFile, bottomSampleUrl, fullModeType, mode, topFile, topSampleUrl, fullSingleFile, fullSingleSampleUrl]);
 
-  const canSubmit = useMemo(
-    () => personReady && garmentReady && state !== 'uploading' && state !== 'creating',
-    [personReady, garmentReady, state],
-  )
+  const canSubmit = useMemo(() => personReady && garmentReady && state !== 'uploading' && state !== 'creating', [personReady, garmentReady, state]);
 
   const uploadOne = async (file: File, scene: 'person' | 'garment') => {
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('scene', scene)
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('scene', scene);
 
-    const response = await fetch('/api/upload', { method: 'POST', body: formData })
-    const payload = (await response.json()) as UploadApiResponse
+    const response = await fetch('/api/upload', { method: 'POST', body: formData });
+    const payload = (await response.json()) as UploadApiResponse;
     if (!response.ok || !payload.success || !payload.publicUrl) {
-      throw new Error(payload.message ?? payload.error ?? '上传失败')
+      throw new Error(payload.message ?? payload.error ?? '上传失败');
     }
-    return payload.publicUrl
-  }
+    return payload.publicUrl;
+  };
 
   const resolvePersonImageUrl = async () => {
-    if (personFile) return uploadOne(personFile, 'person')
-    if (personSampleUrl) return personSampleUrl
-    throw new Error('请先提供人物照片')
-  }
+    if (personFile) return uploadOne(personFile, 'person');
+    if (personSampleUrl) return personSampleUrl;
+    throw new Error('请先提供人物照片');
+  };
 
   const resolveGarmentUrls = async () => {
     if (mode === 'top') {
-      if (topFile) return { topGarmentUrl: await uploadOne(topFile, 'garment') }
-      if (topSampleUrl) return { topGarmentUrl: topSampleUrl }
-      throw new Error('请先提供上装图片')
+      if (topFile) return { topGarmentUrl: await uploadOne(topFile, 'garment') };
+      if (topSampleUrl) return { topGarmentUrl: topSampleUrl };
+      throw new Error('请先提供上装图片');
     }
 
     if (mode === 'bottom') {
-      if (bottomFile) return { bottomGarmentUrl: await uploadOne(bottomFile, 'garment') }
-      if (bottomSampleUrl) return { bottomGarmentUrl: bottomSampleUrl }
-      throw new Error('请先提供下装图片')
+      if (bottomFile) return { bottomGarmentUrl: await uploadOne(bottomFile, 'garment') };
+      if (bottomSampleUrl) return { bottomGarmentUrl: bottomSampleUrl };
+      throw new Error('请先提供下装图片');
     }
 
     if (fullModeType === 'single') {
-      if (fullSingleFile) return { topGarmentUrl: await uploadOne(fullSingleFile, 'garment') }
-      if (fullSingleSampleUrl) return { topGarmentUrl: fullSingleSampleUrl }
-      throw new Error('请先提供整身衣物图片')
+      if (fullSingleFile) return { topGarmentUrl: await uploadOne(fullSingleFile, 'garment') };
+      if (fullSingleSampleUrl) return { topGarmentUrl: fullSingleSampleUrl };
+      throw new Error('请先提供整身衣物图片');
     }
 
-    const topGarmentUrl = topFile ? await uploadOne(topFile, 'garment') : topSampleUrl || undefined
-    const bottomGarmentUrl = bottomFile ? await uploadOne(bottomFile, 'garment') : bottomSampleUrl || undefined
+    const topGarmentUrl = topFile ? await uploadOne(topFile, 'garment') : topSampleUrl || undefined;
+    const bottomGarmentUrl = bottomFile ? await uploadOne(bottomFile, 'garment') : bottomSampleUrl || undefined;
 
     if (!topGarmentUrl || !bottomGarmentUrl) {
-      throw new Error('请同时提供上装和下装图片')
+      throw new Error('请同时提供上装和下装图片');
     }
 
-    return { topGarmentUrl, bottomGarmentUrl }
-  }
+    return { topGarmentUrl, bottomGarmentUrl };
+  };
 
   const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    if (!canSubmit) return
+    e.preventDefault();
+    if (!canSubmit) return;
 
-    setState('uploading')
-    setError(null)
-    setResult(null)
+    setState('uploading');
+    setError(null);
+    setResult(null);
 
     try {
-      const personImageUrl = await resolvePersonImageUrl()
-      const garmentUrls = await resolveGarmentUrls()
+      const personImageUrl = await resolvePersonImageUrl();
+      const garmentUrls = await resolveGarmentUrls();
 
-      setState('creating')
+      setState('creating');
 
       const response = await fetch('/api/tryon', {
         method: 'POST',
@@ -150,101 +161,97 @@ export default function Page() {
           personImageUrl,
           ...garmentUrls,
           refine: refineMode === 'on',
-          gender: 'woman',
-        }),
-      })
+          gender: 'woman'
+        })
+      });
 
       const payload = (await response.json()) as TryOnApiResponse & {
-        error?: string
-        message?: string
-        retryAfter?: string
-      }
+        error?: string;
+        message?: string;
+        retryAfter?: string;
+      };
 
       if (!response.ok) {
-        if (response.status === 401) throw new Error('401：API Key 无效或已过期，请检查服务端配置')
-        if (response.status === 429) throw new Error(`429：请求频率受限，请稍后重试${payload.retryAfter ? `（retry-after: ${payload.retryAfter}）` : ''}`)
-        if (response.status === 504) throw new Error('timeout：上游服务超时，请稍后重试')
-        throw new Error(payload.message ?? payload.error ?? '请求失败，请稍后重试')
+        if (response.status === 401) throw new Error('401：API Key 无效或已过期，请检查服务端配置');
+        if (response.status === 429) throw new Error(`429：请求频率受限，请稍后重试${payload.retryAfter ? `（retry-after: ${payload.retryAfter}）` : ''}`);
+        if (response.status === 504) throw new Error('timeout：上游服务超时，请稍后重试');
+        throw new Error(payload.message ?? payload.error ?? '请求失败，请稍后重试');
       }
 
-      setResult(payload)
-      setState('success')
+      setResult(payload);
+      setState('success');
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : '未知错误')
-      setState('error')
+      setError(submitError instanceof Error ? submitError.message : '未知错误');
+      setState('error');
     }
-  }
+  };
 
   const retryGenerate = async () => {
-    if (!canSubmit) return
-    await onSubmit({ preventDefault() {} } as FormEvent<HTMLFormElement>)
-  }
+    if (!canSubmit) return;
+    await onSubmit({ preventDefault() {} } as FormEvent<HTMLFormElement>);
+  };
 
   const resetAll = () => {
-    setMode('full')
-    setFullModeType('single')
-    setPersonSampleUrl('')
-    setTopSampleUrl('')
-    setBottomSampleUrl('')
-    setFullSingleSampleUrl('')
-    setPersonFile(null)
-    setTopFile(null)
-    setBottomFile(null)
-    setFullSingleFile(null)
-    setPersonPreview('')
-    setTopPreview('')
-    setBottomPreview('')
-    setFullSinglePreview('')
-    setResult(null)
-    setError(null)
-    setRefineMode('on')
-    setState('idle')
-  }
+    setMode('full');
+    setFullModeType('single');
+    setPersonSampleUrl('');
+    setTopSampleUrl('');
+    setBottomSampleUrl('');
+    setFullSingleSampleUrl('');
+    setPersonFile(null);
+    setTopFile(null);
+    setBottomFile(null);
+    setFullSingleFile(null);
+    setPersonPreview('');
+    setTopPreview('');
+    setBottomPreview('');
+    setFullSinglePreview('');
+    setResult(null);
+    setError(null);
+    setRefineMode('on');
+    setState('idle');
+  };
 
   const clearPerson = () => {
-    setPersonFile(null)
-    setPersonPreview('')
-    setPersonSampleUrl('')
-  }
+    setPersonFile(null);
+    setPersonPreview('');
+    setPersonSampleUrl('');
+  };
 
   const clearTop = () => {
-    setTopFile(null)
-    setTopPreview('')
-    setTopSampleUrl('')
-  }
+    setTopFile(null);
+    setTopPreview('');
+    setTopSampleUrl('');
+  };
 
   const clearBottom = () => {
-    setBottomFile(null)
-    setBottomPreview('')
-    setBottomSampleUrl('')
-  }
+    setBottomFile(null);
+    setBottomPreview('');
+    setBottomSampleUrl('');
+  };
 
   const clearFullSingle = () => {
-    setFullSingleFile(null)
-    setFullSinglePreview('')
-    setFullSingleSampleUrl('')
-  }
+    setFullSingleFile(null);
+    setFullSinglePreview('');
+    setFullSingleSampleUrl('');
+  };
 
-  const isLoading = state === 'uploading' || state === 'creating'
-  const loadingText = state === 'uploading' ? '正在上传图片...' : state === 'creating' ? '正在生成试穿效果...' : ''
-  const resultImageUrl = result?.output?.image_url ?? result?.output?.results?.[0]?.url
+  const isLoading = state === 'uploading' || state === 'creating';
+  const loadingText = state === 'uploading' ? '正在上传图片...' : state === 'creating' ? '正在生成试穿效果...' : '';
+  const resultImageUrl = result?.output?.image_url ?? result?.output?.results?.[0]?.url;
 
-  const sampleStrip = (
-    items: Array<{ id: string; name: string; url: string }>,
-    activeUrl: string,
-    onPick: (url: string) => void,
-  ) => (
+  const sampleStrip = (items: Array<{ id: string; name: string; url: string }>, activeUrl: string, onPick: (url: string) => void) => (
     <div className="rounded-xl border border-black/10 bg-[#fafaf9] p-3">
       <p className="mb-2 text-sm font-medium text-black/70">示例</p>
       <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:thin] snap-x snap-mandatory">
-        {items.map((sample) => (
+        {items.map(sample => (
           <button
             key={sample.id}
             type="button"
             onClick={() => onPick(sample.url)}
             className={cn(
               'group shrink-0 snap-start overflow-hidden rounded-lg border transition-all',
-              activeUrl === sample.url ? 'border-black/60 ring-2 ring-black/10' : 'border-black/15 hover:border-black/35',
+              activeUrl === sample.url ? 'border-black/60 ring-2 ring-black/10' : 'border-black/15 hover:border-black/35'
             )}
           >
             <img src={sample.url} alt={sample.name} className="h-14 w-14 object-cover transition-transform duration-200 group-hover:scale-110" />
@@ -252,7 +259,7 @@ export default function Page() {
         ))}
       </div>
     </div>
-  )
+  );
 
   const FullModeTypeSwitch = () => (
     <div className="inline-flex items-center gap-1 rounded-full border border-black/10 bg-white px-1 py-1 text-xs text-black/60">
@@ -271,14 +278,13 @@ export default function Page() {
         分开上传
       </button>
     </div>
-  )
+  );
 
-  const garmentModes =
-    mode === 'full' && fullModeType === 'split' ? ['上装', '下装'] : mode === 'top' ? ['上装'] : mode === 'bottom' ? ['下装'] : ['整身']
+  const garmentModes = mode === 'full' && fullModeType === 'split' ? ['上装', '下装'] : mode === 'top' ? ['上装'] : mode === 'bottom' ? ['下装'] : ['整身'];
 
   const ModeSwitch = () => (
     <div className="inline-flex items-center gap-1 rounded-full border border-black/10 bg-white px-1 py-1 text-xs text-black/60 shadow-sm">
-      {MODE_OPTIONS.map((option) => (
+      {MODE_OPTIONS.map(option => (
         <button
           key={option.id}
           type="button"
@@ -289,7 +295,7 @@ export default function Page() {
         </button>
       ))}
     </div>
-  )
+  );
 
   return (
     <main className="min-h-screen bg-[#f6f6f4] text-[#1b1b1b]">
@@ -324,7 +330,9 @@ export default function Page() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Label htmlFor="person-upload" className="text-xs text-black/55">建议全身站姿，光线清晰</Label>
+                <Label htmlFor="person-upload" className="text-xs text-black/55">
+                  建议全身站姿，光线清晰
+                </Label>
                 <div className="group relative min-h-[220px] overflow-hidden rounded-xl border border-black/10 bg-[#f7f7f6]">
                   {personPreview || personSampleUrl ? (
                     <>
@@ -343,7 +351,10 @@ export default function Page() {
                       </button>
                     </>
                   ) : (
-                    <label htmlFor="person-upload" className="flex h-[28vh] min-h-[220px] w-full cursor-pointer flex-col items-center justify-center gap-2 text-center">
+                    <label
+                      htmlFor="person-upload"
+                      className="flex h-[28vh] min-h-[220px] w-full cursor-pointer flex-col items-center justify-center gap-2 text-center"
+                    >
                       <Upload className="h-8 w-8 text-black/35" />
                       <p className="text-sm font-medium text-black/70">点击上传人物照片</p>
                       <p className="text-xs text-black/40">支持 JPG / PNG / WebP</p>
@@ -353,18 +364,18 @@ export default function Page() {
                     id="person-upload"
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0] ?? null
-                      setPersonFile(file)
-                      setPersonPreview(file ? URL.createObjectURL(file) : '')
+                    onChange={e => {
+                      const file = e.target.files?.[0] ?? null;
+                      setPersonFile(file);
+                      setPersonPreview(file ? URL.createObjectURL(file) : '');
                     }}
                     className="hidden"
                   />
                 </div>
-                {sampleStrip(PERSON_SAMPLES, personSampleUrl, (url) => {
-                  setPersonSampleUrl(url)
-                  setPersonFile(null)
-                  setPersonPreview('')
+                {sampleStrip(PERSON_SAMPLES, personSampleUrl, url => {
+                  setPersonSampleUrl(url);
+                  setPersonFile(null);
+                  setPersonPreview('');
                 })}
               </CardContent>
             </Card>
@@ -406,7 +417,10 @@ export default function Page() {
                           </button>
                         </>
                       ) : (
-                        <label htmlFor="top-upload" className="flex h-[28vh] min-h-[220px] w-full cursor-pointer flex-col items-center justify-center gap-2 text-center">
+                        <label
+                          htmlFor="top-upload"
+                          className="flex h-[28vh] min-h-[220px] w-full cursor-pointer flex-col items-center justify-center gap-2 text-center"
+                        >
                           <Upload className="h-8 w-8 text-black/35" />
                           <p className="text-sm font-medium text-black/70">点击上传上装图片</p>
                           <p className="text-xs text-black/40">支持 JPG / PNG / WebP</p>
@@ -416,18 +430,18 @@ export default function Page() {
                         id="top-upload"
                         type="file"
                         accept="image/jpeg,image/png,image/webp"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0] ?? null
-                          setTopFile(file)
-                          setTopPreview(file ? URL.createObjectURL(file) : '')
+                        onChange={e => {
+                          const file = e.target.files?.[0] ?? null;
+                          setTopFile(file);
+                          setTopPreview(file ? URL.createObjectURL(file) : '');
                         }}
                         className="hidden"
                       />
                     </div>
-                    {sampleStrip(TOP_SAMPLES, topSampleUrl, (url) => {
-                      setTopSampleUrl(url)
-                      setTopFile(null)
-                      setTopPreview('')
+                    {sampleStrip(TOP_SAMPLES, topSampleUrl, url => {
+                      setTopSampleUrl(url);
+                      setTopFile(null);
+                      setTopPreview('');
                     })}
                   </>
                 )}
@@ -453,7 +467,10 @@ export default function Page() {
                           </button>
                         </>
                       ) : (
-                        <label htmlFor="bottom-upload" className="flex h-[28vh] min-h-[220px] w-full cursor-pointer flex-col items-center justify-center gap-2 text-center">
+                        <label
+                          htmlFor="bottom-upload"
+                          className="flex h-[28vh] min-h-[220px] w-full cursor-pointer flex-col items-center justify-center gap-2 text-center"
+                        >
                           <Upload className="h-8 w-8 text-black/35" />
                           <p className="text-sm font-medium text-black/70">点击上传下装图片</p>
                           <p className="text-xs text-black/40">支持 JPG / PNG / WebP</p>
@@ -463,18 +480,18 @@ export default function Page() {
                         id="bottom-upload"
                         type="file"
                         accept="image/jpeg,image/png,image/webp"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0] ?? null
-                          setBottomFile(file)
-                          setBottomPreview(file ? URL.createObjectURL(file) : '')
+                        onChange={e => {
+                          const file = e.target.files?.[0] ?? null;
+                          setBottomFile(file);
+                          setBottomPreview(file ? URL.createObjectURL(file) : '');
                         }}
                         className="hidden"
                       />
                     </div>
-                    {sampleStrip(BOTTOM_SAMPLES, bottomSampleUrl, (url) => {
-                      setBottomSampleUrl(url)
-                      setBottomFile(null)
-                      setBottomPreview('')
+                    {sampleStrip(BOTTOM_SAMPLES, bottomSampleUrl, url => {
+                      setBottomSampleUrl(url);
+                      setBottomFile(null);
+                      setBottomPreview('');
                     })}
                   </>
                 )}
@@ -500,7 +517,10 @@ export default function Page() {
                           </button>
                         </>
                       ) : (
-                        <label htmlFor="full-single-upload" className="flex h-[28vh] min-h-[220px] w-full cursor-pointer flex-col items-center justify-center gap-2 text-center">
+                        <label
+                          htmlFor="full-single-upload"
+                          className="flex h-[28vh] min-h-[220px] w-full cursor-pointer flex-col items-center justify-center gap-2 text-center"
+                        >
                           <Upload className="h-8 w-8 text-black/35" />
                           <p className="text-sm font-medium text-black/70">点击上传整身衣物</p>
                           <p className="text-xs text-black/40">适合连衣裙 / 套装 / 连体衣</p>
@@ -510,18 +530,18 @@ export default function Page() {
                         id="full-single-upload"
                         type="file"
                         accept="image/jpeg,image/png,image/webp"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0] ?? null
-                          setFullSingleFile(file)
-                          setFullSinglePreview(file ? URL.createObjectURL(file) : '')
+                        onChange={e => {
+                          const file = e.target.files?.[0] ?? null;
+                          setFullSingleFile(file);
+                          setFullSinglePreview(file ? URL.createObjectURL(file) : '');
                         }}
                         className="hidden"
                       />
                     </div>
-                    {sampleStrip(FULL_SINGLE_SAMPLES, fullSingleSampleUrl, (url) => {
-                      setFullSingleSampleUrl(url)
-                      setFullSingleFile(null)
-                      setFullSinglePreview('')
+                    {sampleStrip(FULL_SINGLE_SAMPLES, fullSingleSampleUrl, url => {
+                      setFullSingleSampleUrl(url);
+                      setFullSingleFile(null);
+                      setFullSinglePreview('');
                     })}
                   </>
                 )}
@@ -548,7 +568,10 @@ export default function Page() {
                             </button>
                           </>
                         ) : (
-                          <label htmlFor="top-upload" className="flex h-[24vh] min-h-[200px] w-full cursor-pointer flex-col items-center justify-center gap-2 text-center">
+                          <label
+                            htmlFor="top-upload"
+                            className="flex h-[24vh] min-h-[200px] w-full cursor-pointer flex-col items-center justify-center gap-2 text-center"
+                          >
                             <Upload className="h-7 w-7 text-black/35" />
                             <p className="text-sm font-medium text-black/70">上传上装</p>
                           </label>
@@ -557,19 +580,21 @@ export default function Page() {
                           id="top-upload"
                           type="file"
                           accept="image/jpeg,image/png,image/webp"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0] ?? null
-                            setTopFile(file)
-                            setTopPreview(file ? URL.createObjectURL(file) : '')
+                          onChange={e => {
+                            const file = e.target.files?.[0] ?? null;
+                            setTopFile(file);
+                            setTopPreview(file ? URL.createObjectURL(file) : '');
                           }}
                           className="hidden"
                         />
                       </div>
-                      <div className="mt-2">{sampleStrip(TOP_SAMPLES, topSampleUrl, (url) => {
-                        setTopSampleUrl(url)
-                        setTopFile(null)
-                        setTopPreview('')
-                      })}</div>
+                      <div className="mt-2">
+                        {sampleStrip(TOP_SAMPLES, topSampleUrl, url => {
+                          setTopSampleUrl(url);
+                          setTopFile(null);
+                          setTopPreview('');
+                        })}
+                      </div>
                     </div>
 
                     <div>
@@ -592,7 +617,10 @@ export default function Page() {
                             </button>
                           </>
                         ) : (
-                          <label htmlFor="bottom-upload" className="flex h-[24vh] min-h-[200px] w-full cursor-pointer flex-col items-center justify-center gap-2 text-center">
+                          <label
+                            htmlFor="bottom-upload"
+                            className="flex h-[24vh] min-h-[200px] w-full cursor-pointer flex-col items-center justify-center gap-2 text-center"
+                          >
                             <Upload className="h-7 w-7 text-black/35" />
                             <p className="text-sm font-medium text-black/70">上传下装</p>
                           </label>
@@ -601,19 +629,21 @@ export default function Page() {
                           id="bottom-upload"
                           type="file"
                           accept="image/jpeg,image/png,image/webp"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0] ?? null
-                            setBottomFile(file)
-                            setBottomPreview(file ? URL.createObjectURL(file) : '')
+                          onChange={e => {
+                            const file = e.target.files?.[0] ?? null;
+                            setBottomFile(file);
+                            setBottomPreview(file ? URL.createObjectURL(file) : '');
                           }}
                           className="hidden"
                         />
                       </div>
-                      <div className="mt-2">{sampleStrip(BOTTOM_SAMPLES, bottomSampleUrl, (url) => {
-                        setBottomSampleUrl(url)
-                        setBottomFile(null)
-                        setBottomPreview('')
-                      })}</div>
+                      <div className="mt-2">
+                        {sampleStrip(BOTTOM_SAMPLES, bottomSampleUrl, url => {
+                          setBottomSampleUrl(url);
+                          setBottomFile(null);
+                          setBottomPreview('');
+                        })}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -641,14 +671,20 @@ export default function Page() {
                   <button
                     type="button"
                     onClick={() => setRefineMode('on')}
-                    className={cn('min-w-0 flex-1 rounded-full px-2.5 py-1.5 text-[12px] transition sm:px-3', refineMode === 'on' ? 'bg-black text-white' : 'hover:bg-black/5')}
+                    className={cn(
+                      'min-w-0 flex-1 rounded-full px-2.5 py-1.5 text-[12px] transition sm:px-3',
+                      refineMode === 'on' ? 'bg-black text-white' : 'hover:bg-black/5'
+                    )}
                   >
                     精修开
                   </button>
                   <button
                     type="button"
                     onClick={() => setRefineMode('off')}
-                    className={cn('min-w-0 flex-1 rounded-full px-2.5 py-1.5 text-[12px] transition sm:px-3', refineMode === 'off' ? 'bg-black text-white' : 'hover:bg-black/5')}
+                    className={cn(
+                      'min-w-0 flex-1 rounded-full px-2.5 py-1.5 text-[12px] transition sm:px-3',
+                      refineMode === 'off' ? 'bg-black text-white' : 'hover:bg-black/5'
+                    )}
                   >
                     精修关
                   </button>
@@ -717,5 +753,5 @@ export default function Page() {
         </div>
       </form>
     </main>
-  )
+  );
 }
