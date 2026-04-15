@@ -1,4 +1,5 @@
 import crypto from 'node:crypto'
+import { Readable } from 'node:stream'
 import { logger } from '@/lib/logger'
 import { HttpClientError, HttpTimeoutError } from '@/lib/services/httpClient'
 import type { StorageUploadResult } from '@/types/storage'
@@ -292,7 +293,8 @@ async function uploadToCos(file: File, scene?: string): Promise<StorageUploadRes
         'Content-Type': file.type,
         'Content-Length': String(file.size),
       },
-      body: file,
+      body: Readable.fromWeb(file.stream() as unknown as ReadableStream),
+      duplex: 'half',
       signal: controller.signal,
     })
 
