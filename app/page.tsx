@@ -59,7 +59,7 @@ const MODE_OPTIONS: Array<{ id: TryOnMode; label: string }> = [
 ];
 
 export default function Page() {
-  const [mode, setMode] = useState<TryOnMode>('full');
+  const [mode, setMode] = useState<TryOnMode>('top');
   const [fullModeType, setFullModeType] = useState<FullModeType>('single');
   const [refineMode, setRefineMode] = useState<RefineMode>('on');
 
