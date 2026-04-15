@@ -312,6 +312,13 @@ export default function Page() {
             : state === 'error'
               ? error ?? '发生错误'
               : '提交后将显示实时进度';
+  const currentProgress = state === 'uploading' ? 20 : state === 'creating' ? 45 : state === 'polling' ? 78 : state === 'success' ? 100 : 0;
+  const stepStates = [
+    { key: 'uploading', label: '上传素材', done: ['creating', 'polling', 'success'].includes(state), active: state === 'uploading' },
+    { key: 'creating', label: '创建任务', done: ['polling', 'success'].includes(state), active: state === 'creating' },
+    { key: 'polling', label: '生成结果', done: state === 'success', active: state === 'polling' },
+    { key: 'success', label: '完成', done: state === 'success', active: state === 'success' },
+  ] as const;
 
   const sampleStrip = (items: Array<{ id: string; name: string; url: string }>, activeUrl: string, onPick: (url: string) => void) => (
     <div className="rounded-xl border border-black/10 bg-[#fafaf9] p-3">
@@ -737,6 +744,41 @@ export default function Page() {
                     {result?.status ?? 'idle'}
                   </div>
                 </div>
+                <div className="mt-3 rounded-full border border-black/10 bg-white px-3 py-2 sm:px-4 sm:py-2.5">
+                  <div className="grid grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr] items-center gap-x-3 sm:gap-x-4">
+                    {stepStates.map((step, index) => (
+                      <>
+                        <div key={step.key} className="flex items-center justify-center gap-2">
+                          <div
+                            className={cn(
+                              'flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[10px] font-medium transition sm:h-7 sm:w-7 sm:text-[11px]',
+                              step.done
+                                ? 'border-emerald-300 bg-emerald-100 text-emerald-700'
+                                : step.active
+                                  ? 'border-black bg-black text-white'
+                                  : 'border-black/10 bg-[#f4f4f2] text-black/35'
+                            )}
+                          >
+                            {index + 1}
+                          </div>
+                          <div className="min-w-0 text-left leading-tight">
+                            <div className={cn('truncate text-[11px] font-medium sm:text-xs', step.done ? 'text-emerald-700' : step.active ? 'text-black' : 'text-black/45')}>
+                              {step.label}
+                            </div>
+                            <div className={cn('truncate text-[10px] sm:text-[11px]', step.done ? 'text-emerald-600/80' : step.active ? 'text-black/65' : 'text-black/35')}>
+                              {step.done ? '完成' : step.active ? '进行中' : '等待中'}
+                            </div>
+                          </div>
+                        </div>
+                        {index < stepStates.length - 1 && (
+                          <div key={`${step.key}-line`} className="flex items-center justify-center">
+                            <div className="h-px w-full min-w-4 bg-black/10 sm:min-w-6" />
+                          </div>
+                        )}
+                      </>
+                    ))}
+                  </div>
+                </div>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
@@ -781,23 +823,32 @@ export default function Page() {
                 {resultImageUrl ? (
                   <img src={resultImageUrl} alt="try-on result" className="max-h-[58vh] w-full object-contain" />
                 ) : (
-                  <div className="flex h-full min-h-[420px] w-full flex-col items-center justify-center text-black/40">
+                  <div className="flex h-full min-h-[420px] w-full flex-col items-center justify-center px-6 text-black/40">
                     {isLoading ? <Loader2 className="mb-2 h-10 w-10 animate-spin" /> : <ImageIcon className="mb-2 h-10 w-10" />}
                     <p className="text-sm">{isLoading ? loadingText : '等待生成试穿结果'}</p>
                     <p className="mt-2 max-w-sm text-center text-xs leading-5 text-black/35">
                       提交后会先创建 job，再自动轮询 coarse / refine 进度。长耗时不再阻塞浏览器连接。
                     </p>
+                    {isLoading && (
+                      <div className="mt-5 w-full max-w-sm rounded-xl border border-black/10 bg-white/80 px-4 py-3 shadow-sm">
+                        <div className="mb-2 flex items-center justify-between text-xs text-black/55">
+                          <span>{loadingText}</span>
+                          <span>{jobId ? `jobId: ${jobId.slice(0, 8)}` : '处理中'}</span>
+                        </div>
+                        <Progress value={currentProgress} className="h-2" />
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
 
-              {isLoading && (
+              {isLoading && !resultImageUrl && (
                 <div className="rounded-xl border border-black/10 bg-[#fafaf9] px-4 py-3">
                   <div className="mb-2 flex items-center justify-between text-xs text-black/55">
                     <span>{loadingText}</span>
                     <span>{jobId ? `jobId: ${jobId.slice(0, 8)}` : '处理中'}</span>
                   </div>
-                  <Progress value={state === 'uploading' ? 20 : state === 'creating' ? 40 : 80} className="h-2" />
+                  <Progress value={currentProgress} className="h-2" />
                 </div>
               )}
 
