@@ -236,14 +236,14 @@ export default function Page() {
   ) => (
     <div className="rounded-xl border border-black/10 bg-[#fafaf9] p-3">
       <p className="mb-2 text-sm font-medium text-black/70">示例</p>
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:thin] snap-x snap-mandatory">
         {items.map((sample) => (
           <button
             key={sample.id}
             type="button"
             onClick={() => onPick(sample.url)}
             className={cn(
-              'group overflow-hidden rounded-lg border transition-all',
+              'group shrink-0 snap-start overflow-hidden rounded-lg border transition-all',
               activeUrl === sample.url ? 'border-black/60 ring-2 ring-black/10' : 'border-black/15 hover:border-black/35',
             )}
           >
@@ -310,7 +310,7 @@ export default function Page() {
 
       <form onSubmit={onSubmit} className="mx-auto w-full max-w-[1280px] px-4 pb-12 pt-5">
         <div className="grid gap-4 lg:grid-cols-[42%_58%] xl:grid-cols-[40%_60%]">
-          <div className="flex h-full flex-col gap-4">
+          <div className="flex h-full flex-col gap-4 lg:gap-5">
             <Card className="overflow-hidden rounded-2xl border-black/10 bg-white shadow-[0_8px_28px_rgba(0,0,0,0.05)]">
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-2.5">
@@ -371,7 +371,7 @@ export default function Page() {
 
             <Card className="overflow-hidden rounded-2xl border-black/10 bg-white shadow-[0_8px_28px_rgba(0,0,0,0.05)]">
               <CardHeader className="pb-3">
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-2.5">
                     <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#111827] text-white">
                       <Shirt className="h-4.5 w-4.5" />
@@ -637,20 +637,20 @@ export default function Page() {
                   <ImageIcon className="h-3.5 w-3.5" />
                   <span>{result?.output?.task_status ?? '未开始'}</span>
                 </div>
-                <div className="inline-flex items-center gap-1 rounded-full border border-black/10 bg-white px-1 py-1 text-xs text-black/60 shadow-sm">
+                <div className="inline-flex w-full items-center gap-1 rounded-full border border-black/10 bg-white p-1 text-xs text-black/60 shadow-sm sm:w-auto">
                   <button
                     type="button"
                     onClick={() => setRefineMode('on')}
-                    className={cn('rounded-full px-3 py-1.5 transition', refineMode === 'on' ? 'bg-black text-white' : 'hover:bg-black/5')}
+                    className={cn('min-w-0 flex-1 rounded-full px-2.5 py-1.5 text-[12px] transition sm:px-3', refineMode === 'on' ? 'bg-black text-white' : 'hover:bg-black/5')}
                   >
-                    精修 开
+                    精修开
                   </button>
                   <button
                     type="button"
                     onClick={() => setRefineMode('off')}
-                    className={cn('rounded-full px-3 py-1.5 transition', refineMode === 'off' ? 'bg-black text-white' : 'hover:bg-black/5')}
+                    className={cn('min-w-0 flex-1 rounded-full px-2.5 py-1.5 text-[12px] transition sm:px-3', refineMode === 'off' ? 'bg-black text-white' : 'hover:bg-black/5')}
                   >
-                    精修 关
+                    精修关
                   </button>
                 </div>
               </div>
