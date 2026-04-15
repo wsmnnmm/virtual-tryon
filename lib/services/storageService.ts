@@ -18,6 +18,9 @@ const ossBucket = process.env.OSS_BUCKET
 const ossRegion = process.env.OSS_REGION
 const ossPublicBaseUrl = process.env.OSS_PUBLIC_BASE_URL
 
+// Mobile (especially WeChat WebView) uploads can be much slower on cellular networks.
+// Default to a more forgiving timeout unless explicitly configured.
+const uploadTimeoutMs = Number(process.env.OSS_UPLOAD_TIMEOUT_MS ?? process.env.COS_UPLOAD_TIMEOUT_MS ?? '120000')
 const maxFileSizeBytes = Number(process.env.OSS_MAX_FILE_SIZE_BYTES ?? process.env.COS_MAX_FILE_SIZE_BYTES ?? String(10 * 1024 * 1024))
 const allowedMimeTypes = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
@@ -54,52 +57,11 @@ function createCosAuthorization(host: string, objectKey: string) {
   return `q-sign-algorithm=sha1&q-ak=${cosSecretId}&q-sign-time=${signTime}&q-key-time=${signTime}&q-header-list=host&q-url-param-list=&q-signature=${signature}`
 }
 
-export function createCosUploadAuth(objectKey: string) {
-  const host = `${cosBucket}.cos.${cosRegion}.myqcloud.com`
-  const uploadUrl = `https://${host}/${objectKey}`
-  const publicBase = (cosPublicBaseUrl || `https://${host}`).replace(/\/$/, '')
-  const publicUrl = `${publicBase}/${objectKey}`
-  const authorization = createCosAuthorization(host, objectKey)
-
-  return {
-    provider: 'cos' as const,
-    uploadUrl,
-    publicUrl,
-    headers: {
-      Authorization: authorization,
-    },
-  }
-}
-
-// Mobile (especially WeChat WebView) uploads can be much slower on cellular networks.
-// Default to a more forgiving timeout unless explicitly configured.
-const uploadTimeoutMs = Number(process.env.OSS_UPLOAD_TIMEOUT_MS ?? process.env.COS_UPLOAD_TIMEOUT_MS ?? '120000')
-
 // Aliyun OSS signature v1
 function createOssAuthorization(method: string, objectKey: string, contentType: string, date: string) {
   const signature = `${method}\n\n${contentType}\n${date}\n/${ossBucket}/${objectKey}`
   const signatureBase64 = crypto.createHmac('sha1', ossSecretKey as string).update(signature).digest('base64')
   return `OSS ${ossSecretId}:${signatureBase64}`
-}
-
-export function createOssUploadAuth(objectKey: string, contentType: string) {
-  const host = `${ossBucket}.oss-cn-${ossRegion}.aliyuncs.com`
-  const uploadUrl = `https://${host}/${objectKey}`
-  const publicBase = (ossPublicBaseUrl || `https://${host}`).replace(/\/$/, '')
-  const publicUrl = `${publicBase}/${objectKey}`
-  const date = new Date().toUTCString()
-  const authorization = createOssAuthorization('PUT', objectKey, contentType, date)
-
-  return {
-    provider: 'oss' as const,
-    uploadUrl,
-    publicUrl,
-    headers: {
-      Authorization: authorization,
-      'Content-Type': contentType,
-      Date: date,
-    },
-  }
 }
 
 function createObjectKey(file: File, scene?: string) {
@@ -133,42 +95,6 @@ export async function uploadToCozeStorage(file: File, scene?: string): Promise<S
     return uploadToOss(file, scene)
   } else {
     return uploadToCos(file, scene)
-  }
-}
-
-export function createDirectUploadAuth(file: File, scene?: string) {
-  const objectKey = createObjectKey(file, scene)
-  const provider = getProvider()
-
-  if (provider === 'oss') {
-    return createOssUploadAuth(objectKey, file.type)
-  }
-
-  return createCosUploadAuth(objectKey)
-}
-
-export function createFallbackUploadResult(file: File, scene?: string): StorageUploadResult {
-  const objectKey = createObjectKey(file, scene)
-  const provider = getProvider()
-
-  if (provider === 'oss') {
-    const host = `${ossBucket}.oss-cn-${ossRegion}.aliyuncs.com`
-    const publicBase = (ossPublicBaseUrl || `https://${host}`).replace(/\/$/, '')
-    return {
-      assetId: objectKey,
-      publicUrl: `${publicBase}/${objectKey}`,
-      mimeType: file.type,
-      sizeBytes: file.size,
-    }
-  }
-
-  const host = `${cosBucket}.cos.${cosRegion}.myqcloud.com`
-  const publicBase = (cosPublicBaseUrl || `https://${host}`).replace(/\/$/, '')
-  return {
-    assetId: objectKey,
-    publicUrl: `${publicBase}/${objectKey}`,
-    mimeType: file.type,
-    sizeBytes: file.size,
   }
 }
 
