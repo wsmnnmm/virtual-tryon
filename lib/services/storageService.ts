@@ -1,5 +1,4 @@
 import crypto from 'node:crypto'
-import { Readable } from 'node:stream'
 import { logger } from '@/lib/logger'
 import { HttpClientError, HttpTimeoutError } from '@/lib/services/httpClient'
 import type { StorageUploadResult } from '@/types/storage'
@@ -129,10 +128,7 @@ async function uploadToOss(file: File, scene?: string): Promise<StorageUploadRes
         'Content-Length': String(file.size),
         Date: date,
       },
-      // Stream the file to avoid buffering entire payload in memory
-      body: Readable.fromWeb(file.stream() as unknown as ReadableStream),
-      // Node fetch requires duplex for streaming request bodies
-      duplex: 'half',
+      body: file,
       signal: controller.signal,
     })
 
@@ -221,8 +217,7 @@ async function uploadToCos(file: File, scene?: string): Promise<StorageUploadRes
         'Content-Type': file.type,
         'Content-Length': String(file.size),
       },
-      body: Readable.fromWeb(file.stream() as unknown as ReadableStream),
-      duplex: 'half',
+      body: file,
       signal: controller.signal,
     })
 
