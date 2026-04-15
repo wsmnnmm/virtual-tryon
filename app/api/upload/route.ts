@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
 import { HttpClientError, HttpTimeoutError } from '@/lib/services/httpClient'
-import { uploadToCozeStorage } from '@/lib/services/storageService'
+import { createDirectUploadAuth } from '@/lib/services/storageService'
 import type { ApiErrorPayload } from '@/types/tryon'
 
 // Vercel/Next.js route handler hints:
 // - Ensure the function has enough time budget for slow mobile networks.
 // - Prefer running closer to OSS (oss-cn-beijing) to reduce latency.
 export const runtime = 'nodejs'
-export const maxDuration = 180
+export const maxDuration = 30
 export const preferredRegion = ['hnd1', 'sin1', 'iad1']
 
 function errorResponse(status: number, payload: ApiErrorPayload) {
@@ -32,6 +32,14 @@ export async function POST(req: Request) {
       })
     }
 
+    if (!file.type || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      return errorResponse(400, {
+        error: 'INVALID_FILE_TYPE',
+        message: 'Only JPEG, PNG and WebP are allowed',
+        requestId,
+      })
+    }
+
     logger.info({
       event: 'upload.route.start',
       requestId,
@@ -41,27 +49,24 @@ export async function POST(req: Request) {
       userAgent: req.headers.get('user-agent') ?? undefined,
     })
 
-    const result = await uploadToCozeStorage(file, typeof scene === 'string' ? scene : undefined)
+    const auth = createDirectUploadAuth(file, typeof scene === 'string' ? scene : undefined)
 
     logger.info({
       event: 'upload.route.success',
       requestId,
       elapsedMs: Date.now() - start,
-      providerRequestId: result.requestId,
-      assetId: result.assetId,
+      provider: auth.provider,
     })
 
     return NextResponse.json({
       requestId,
       success: true,
-      assetId: result.assetId,
-      publicUrl: result.publicUrl,
-      mimeType: result.mimeType,
-      sizeBytes: result.sizeBytes,
-      width: result.width,
-      height: result.height,
-      createdAt: result.createdAt,
-      storageRequestId: result.requestId,
+      provider: auth.provider,
+      uploadUrl: auth.uploadUrl,
+      publicUrl: auth.publicUrl,
+      headers: auth.headers,
+      mimeType: file.type,
+      sizeBytes: file.size,
     })
   } catch (error) {
     if (error instanceof HttpTimeoutError) {

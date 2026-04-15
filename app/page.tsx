@@ -34,7 +34,10 @@ interface TryOnStatusResponse {
 
 interface UploadApiResponse {
   success: boolean;
+  provider?: 'oss' | 'cos';
+  uploadUrl?: string;
   publicUrl?: string;
+  headers?: Record<string, string>;
   error?: string;
   message?: string;
 }
@@ -123,8 +126,24 @@ export default function Page() {
       throw new Error(payload?.message ?? payload?.error ?? (rawText ? rawText.slice(0, 160) : '上传失败'));
     }
 
-    if (!payload?.success || !payload.publicUrl) {
+    if (!payload?.success || !payload.publicUrl || !payload.uploadUrl) {
       throw new Error(payload?.message ?? payload?.error ?? '上传失败');
+    }
+
+    const uploadHeaders = new Headers(payload.headers ?? {});
+    if (file.type && !uploadHeaders.has('Content-Type')) {
+      uploadHeaders.set('Content-Type', file.type);
+    }
+
+    const putResponse = await fetch(payload.uploadUrl, {
+      method: 'PUT',
+      headers: uploadHeaders,
+      body: file,
+    });
+
+    if (!putResponse.ok) {
+      const putText = await putResponse.text().catch(() => '');
+      throw new Error(putText ? `OSS上传失败：${putText.slice(0, 160)}` : 'OSS上传失败');
     }
 
     return payload.publicUrl;
