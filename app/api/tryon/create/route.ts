@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
-import { getJob, upsertJob } from '@/lib/tryon/jobStore'
+import { upsertJob } from '@/lib/tryon/jobStore'
 import { logTryOn } from '@/lib/tryon/log'
 import { runTryOnJob } from '@/lib/tryon/runner'
 import type { TryOnCreateResponse, TryOnJobRecord } from '@/lib/tryon/protocol'
@@ -33,10 +33,6 @@ export async function POST(req: Request) {
 
     const jobId = crypto.randomUUID()
     const now = new Date().toISOString()
-    const existing = getJob(jobId)
-    if (existing) {
-      return NextResponse.json(existing)
-    }
 
     const job: TryOnJobRecord = {
       jobId,
