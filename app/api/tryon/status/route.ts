@@ -24,7 +24,6 @@ export async function GET(req: Request) {
   const payload: TryOnStatusResponse = {
     jobId: job.jobId,
     status: job.status,
-    requestId: job.requestId,
     coarseTaskId: job.coarseTaskId,
     refineTaskId: job.refineTaskId,
     coarseImageUrl: ensureHttpsUrl(job.coarseImageUrl),

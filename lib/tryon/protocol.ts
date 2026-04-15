@@ -19,8 +19,11 @@ export interface TryOnJobRecord {
   status: TryOnJobStatus
   createdAt: string
   updatedAt: string
-  request: TryOnCreateRequest
-  requestId: string
+  personImageUrl: string
+  topGarmentUrl?: string
+  bottomGarmentUrl?: string
+  refine?: boolean
+  gender?: 'man' | 'woman'
   coarseTaskId?: string
   coarseImageUrl?: string
   refineTaskId?: string
@@ -38,7 +41,6 @@ export interface TryOnCreateResponse {
 export interface TryOnStatusResponse {
   jobId: string
   status: TryOnJobStatus
-  requestId: string
   coarseTaskId?: string
   refineTaskId?: string
   coarseImageUrl?: string

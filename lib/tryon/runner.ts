@@ -8,11 +8,19 @@ function pickImageUrl(task: { output?: { image_url?: string; results?: Array<{ u
   return task.output?.image_url ?? task.output?.results?.[0]?.url
 }
 
-export async function runTryOnJob(job: TryOnJobRecord) {
-  const { jobId, requestId, request } = job
+export async function runTryOnJob(job: TryOnJobRecord, requestId?: string) {
+  const { jobId } = job
+  const traceRequestId = requestId ?? jobId
+  const request = {
+    personImageUrl: job.personImageUrl,
+    topGarmentUrl: job.topGarmentUrl,
+    bottomGarmentUrl: job.bottomGarmentUrl,
+    refine: job.refine,
+    gender: job.gender,
+  }
 
   try {
-    logTryOn('tryon.job.started', { jobId, requestId, refine: request.refine !== false })
+    logTryOn('tryon.job.started', { jobId, requestId: traceRequestId, refine: request.refine !== false })
     await patchJob(jobId, { status: 'coarse_running' })
 
     const coarseTask = await createTryOnTask(request)
@@ -26,7 +34,7 @@ export async function runTryOnJob(job: TryOnJobRecord) {
       const status = task.output?.task_status
       const imageUrl = pickImageUrl(task)
 
-      logTryOn('tryon.job.coarse.poll', { jobId, requestId, coarseTaskId, status, imageUrl: summarizeUrl(imageUrl) })
+      logTryOn('tryon.job.coarse.poll', { jobId, requestId: traceRequestId, coarseTaskId, status, imageUrl: summarizeUrl(imageUrl) })
 
       if (status === 'SUCCEEDED') {
         const safeImage = ensureHttpsUrl(imageUrl)
@@ -43,7 +51,7 @@ export async function runTryOnJob(job: TryOnJobRecord) {
 
     if (request.refine === false) {
       const current = await patchJob(jobId, { status: 'succeeded' })
-      logTryOn('tryon.job.complete', { jobId, requestId, status: current?.status, coarseImageUrl: summarizeUrl(current?.coarseImageUrl) })
+      logTryOn('tryon.job.complete', { jobId, requestId: traceRequestId, status: current?.status, coarseImageUrl: summarizeUrl(current?.coarseImageUrl) })
       return current
     }
 
@@ -60,12 +68,12 @@ export async function runTryOnJob(job: TryOnJobRecord) {
       const task = await queryTryOnTask(refineTaskId)
       const status = task.output?.task_status
       const imageUrl = pickImageUrl(task)
-      logTryOn('tryon.job.refine.poll', { jobId, requestId, refineTaskId, status, imageUrl: summarizeUrl(imageUrl) })
+      logTryOn('tryon.job.refine.poll', { jobId, requestId: traceRequestId, refineTaskId, status, imageUrl: summarizeUrl(imageUrl) })
 
       if (status === 'SUCCEEDED') {
         const safeImage = ensureHttpsUrl(imageUrl)
         const current = await patchJob(jobId, { status: 'succeeded', refinedImageUrl: safeImage })
-        logTryOn('tryon.job.complete', { jobId, requestId, status: current?.status, refinedImageUrl: summarizeUrl(current?.refinedImageUrl) })
+        logTryOn('tryon.job.complete', { jobId, requestId: traceRequestId, status: current?.status, refinedImageUrl: summarizeUrl(current?.refinedImageUrl) })
         return current
       }
 
@@ -78,7 +86,7 @@ export async function runTryOnJob(job: TryOnJobRecord) {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'unknown error'
     await patchJob(jobId, { status: 'failed', error: 'JOB_FAILED', errorMessage: message })
-    logTryOn('tryon.job.failed', { jobId, requestId, message })
+    logTryOn('tryon.job.failed', { jobId, requestId: traceRequestId, message })
     if (error instanceof HttpClientError) throw error
     throw error
   }

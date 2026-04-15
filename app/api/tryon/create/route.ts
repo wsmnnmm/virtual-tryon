@@ -39,10 +39,13 @@ export async function POST(req: Request) {
       status: 'pending',
       createdAt: now,
       updatedAt: now,
-      requestId,
-      request: parsed.data,
+      personImageUrl: parsed.data.personImageUrl,
+      ...(parsed.data.topGarmentUrl ? { topGarmentUrl: parsed.data.topGarmentUrl } : {}),
+      ...(parsed.data.bottomGarmentUrl ? { bottomGarmentUrl: parsed.data.bottomGarmentUrl } : {}),
+      ...(parsed.data.refine !== undefined ? { refine: parsed.data.refine } : {}),
+      ...(parsed.data.gender ? { gender: parsed.data.gender } : {}),
     }
-    upsertJob(job)
+    await upsertJob(job)
 
     logTryOn('tryon.job.created', {
       jobId,
@@ -52,7 +55,7 @@ export async function POST(req: Request) {
       refine: parsed.data.refine !== false,
     })
 
-    void runTryOnJob(job).catch(error => {
+    void runTryOnJob(job, requestId).catch(error => {
       logger.error({
         event: 'tryon.job.background_error',
         jobId,

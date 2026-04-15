@@ -1,52 +1,62 @@
+// cspell:ignore redis tryon
+import { createClient, type RedisClientType } from 'redis'
 import type { TryOnJobRecord } from './protocol'
 
-const globalForTryOn = globalThis as typeof globalThis & {
-  __tryOnJobs?: Map<string, TryOnJobRecord>
-}
-
-const memoryJobs = globalForTryOn.__tryOnJobs ?? new Map<string, TryOnJobRecord>()
-if (!globalForTryOn.__tryOnJobs) {
-  globalForTryOn.__tryOnJobs = memoryJobs
-}
-
-const kvRestUrl = process.env.KV_REST_API_URL
-const kvRestToken = process.env.KV_REST_API_TOKEN
-const usePersistentStore = Boolean(kvRestUrl && kvRestToken)
+const redisUrl = process.env.REDIS_URL
 const namespace = 'tryon:job:'
+const jobTtlSeconds = Number(process.env.TRYON_JOB_TTL_SECONDS ?? '604800')
 
-async function kvFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  if (!kvRestUrl || !kvRestToken) throw new Error('KV env missing')
-  const response = await fetch(`${kvRestUrl}${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${kvRestToken}`,
-      'Content-Type': 'application/json',
-      ...(init?.headers ?? {}),
-    },
-    cache: 'no-store',
-  })
-  if (!response.ok) {
-    throw new Error(`KV request failed: ${response.status}`)
+let redisClient: RedisClientType | undefined
+let redisConnectPromise: Promise<RedisClientType> | undefined
+
+function assertRedisConfigured() {
+  if (!redisUrl) {
+    throw new Error('Redis job store is not configured. Set REDIS_URL.')
   }
-  return (await response.json()) as T
+}
+
+function getRedisClient() {
+  assertRedisConfigured()
+
+  if (!redisClient) {
+    redisClient = createClient({ url: redisUrl })
+    redisClient.on('error', (error) => {
+      console.error('Redis client error:', error)
+    })
+  }
+
+  return redisClient
+}
+
+async function getConnectedRedisClient() {
+  const client = getRedisClient()
+
+  if (client.isOpen) {
+    return client
+  }
+
+  if (!redisConnectPromise) {
+    redisConnectPromise = client.connect().then(() => client)
+  }
+
+  try {
+    return await redisConnectPromise
+  } finally {
+    redisConnectPromise = undefined
+  }
 }
 
 async function persistJob(job: TryOnJobRecord) {
-  if (!usePersistentStore) {
-    memoryJobs.set(job.jobId, job)
-    return job
-  }
-  await kvFetch('/set', {
-    method: 'POST',
-    body: JSON.stringify({ key: `${namespace}${job.jobId}`, value: job }),
-  })
+  const client = await getConnectedRedisClient()
+  await client.set(`${namespace}${job.jobId}`, JSON.stringify(job), { EX: jobTtlSeconds })
   return job
 }
 
 async function loadJob(jobId: string) {
-  if (!usePersistentStore) return memoryJobs.get(jobId)
-  const data = await kvFetch<{ result: TryOnJobRecord | null }>(`/get/${encodeURIComponent(`${namespace}${jobId}`)}`)
-  return data.result ?? undefined
+  const client = await getConnectedRedisClient()
+  const raw = await client.get(`${namespace}${jobId}`)
+  if (!raw) return undefined
+  return JSON.parse(raw) as TryOnJobRecord
 }
 
 export async function upsertJob(job: TryOnJobRecord) {
@@ -54,22 +64,19 @@ export async function upsertJob(job: TryOnJobRecord) {
 }
 
 export async function getJob(jobId: string) {
-  const persisted = await loadJob(jobId)
-  if (persisted) {
-    memoryJobs.set(jobId, persisted)
-    return persisted
-  }
-  return memoryJobs.get(jobId)
+  return loadJob(jobId)
 }
 
 export async function patchJob(jobId: string, patch: Partial<TryOnJobRecord>) {
   const current = await getJob(jobId)
   if (!current) return undefined
+
   const next = {
     ...current,
     ...patch,
     updatedAt: new Date().toISOString(),
   }
+
   await persistJob(next)
   return next
 }
