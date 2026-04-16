@@ -99,6 +99,15 @@ export default function Page() {
 
   const canSubmit = useMemo(() => personReady && garmentReady && state !== 'uploading' && state !== 'creating', [personReady, garmentReady, state]);
 
+  const safeParseJson = <T,>(rawText: string): T | null => {
+    if (!rawText.trim()) return null;
+    try {
+      return JSON.parse(rawText) as T;
+    } catch {
+      return null;
+    }
+  };
+
   const uploadOne = async (file: File, scene: 'person' | 'garment') => {
     const formData = new FormData();
     formData.append('file', file);
@@ -106,13 +115,7 @@ export default function Page() {
 
     const response = await fetch('/api/upload', { method: 'POST', body: formData });
     const rawText = await response.text();
-    let payload: UploadApiResponse | null = null;
-
-    try {
-      payload = rawText ? (JSON.parse(rawText) as UploadApiResponse) : null;
-    } catch {
-      payload = null;
-    }
+    const payload = safeParseJson<UploadApiResponse>(rawText);
 
     if (!response.ok) {
       // Some platforms/proxies return plain text/HTML (e.g. 413 Request Entity Too Large),
@@ -169,9 +172,16 @@ export default function Page() {
     const maxPolls = 180
     for (let i = 0; i < maxPolls; i++) {
       const response = await fetch(`/api/tryon/status?jobId=${encodeURIComponent(nextJobId)}`, { cache: 'no-store' })
-      const payload = (await response.json()) as TryOnStatusResponse & { error?: string; message?: string }
+      const rawText = await response.text()
+      const payload = safeParseJson<TryOnStatusResponse & { error?: string; message?: string }>(rawText)
 
-      if (!response.ok) throw new Error(payload.message ?? payload.error ?? '查询任务状态失败')
+      if (!response.ok) {
+        throw new Error(payload?.message ?? payload?.error ?? (rawText ? rawText.slice(0, 160) : '查询任务状态失败'))
+      }
+
+      if (!payload) {
+        throw new Error('状态接口返回空内容，请稍后重试')
+      }
 
       setResult(payload)
 
@@ -215,10 +225,15 @@ export default function Page() {
         })
       });
 
-      const payload = (await response.json()) as TryOnCreateResponse & { error?: string; message?: string; retryAfter?: string };
+      const rawText = await response.text();
+      const payload = safeParseJson<TryOnCreateResponse & { error?: string; message?: string; retryAfter?: string }>(rawText);
 
       if (!response.ok) {
-        throw new Error(payload.message ?? payload.error ?? '创建任务失败')
+        throw new Error(payload?.message ?? payload?.error ?? (rawText ? rawText.slice(0, 160) : '创建任务失败'))
+      }
+
+      if (!payload) {
+        throw new Error('创建接口返回空内容，请稍后重试')
       }
 
       setJobId(payload.jobId)
