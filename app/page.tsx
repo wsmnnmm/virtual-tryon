@@ -747,8 +747,8 @@ export default function Page() {
                 <div className="mt-3 rounded-full border border-black/10 bg-white px-2 py-1.5 sm:px-4 sm:py-2.5">
                   <div className="grid grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr] items-center gap-x-2 sm:gap-x-3">
                     {stepStates.map((step, index) => (
-                      <>
-                        <div key={step.key} className="flex min-w-0 items-center justify-center gap-1 sm:gap-2.5">
+                      <div key={step.key} className="contents">
+                        <div className="flex min-w-0 items-center justify-center gap-1 sm:gap-2.5">
                           <div
                             className={cn(
                               'flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-[6px] font-medium transition sm:h-7 sm:w-7 sm:text-[11px]',
@@ -770,8 +770,8 @@ export default function Page() {
                             </div>
                           </div>
                         </div>
-                        {index < stepStates.length - 1 && <div key={`${step.key}-line`} className="mx-auto h-px w-2.5 bg-black/10 sm:w-8" />}
-                      </>
+                        {index < stepStates.length - 1 && <div className="mx-auto h-px w-2.5 bg-black/10 sm:w-8" />}
+                      </div>
                     ))}
                   </div>
                 </div>
